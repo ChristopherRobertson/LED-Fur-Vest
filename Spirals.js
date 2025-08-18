@@ -62,7 +62,8 @@ var accumulator = 0; // Custom timer to allow for resets
 var newCycle = true; // Flag to signal a reset is needed
 
 export function beforeRender(delta) {
-    var totalAnimationSteps = 60 * pitch;
+    // FIXED: Use 36 (max new column height) instead of 60
+    var totalAnimationSteps = 36 * pitch;
     var basePeriod = 0.2 * pitch;
     var finalPeriod = basePeriod / speed;
 
@@ -114,7 +115,8 @@ export function beforeRender(delta) {
     var len2 = columnLengths[columnNumber2];
     var reversed2 = isReversed[columnNumber2];
 
-    var blueVerticalOffset = (60 - 1) - masterVerticalStep;
+    // FIXED: Use 36 (max new column height) instead of 60
+    var blueVerticalOffset = (36 - 1) - masterVerticalStep;
 
     if (blueVerticalOffset < 0 || blueVerticalOffset >= len2) {
         litPixel2 = -1;
@@ -136,9 +138,9 @@ export function beforeRender(delta) {
         accumulator = 0;
         newCycle = true;
     }
-    // UPDATED: If the spirals meet at the center-back columns (12 and 13)
-    // AND they are at the vertical midpoint, reset.
-    else if (((columnNumber1 == 12 && columnNumber2 == 13) || (columnNumber1 == 13 && columnNumber2 == 12)) && masterVerticalStep >= 29 && masterVerticalStep <= 30) {
+    // FIXED: If the spirals meet at the center-back columns (18 and 19 for 36-col layout)
+    // AND they are at the new vertical midpoint, reset.
+    else if (((columnNumber1 == 18 && columnNumber2 == 19) || (columnNumber1 == 19 && columnNumber2 == 18)) && masterVerticalStep >= 17 && masterVerticalStep <= 18) {
         accumulator = 0;
         newCycle = true;
     }
@@ -152,6 +154,7 @@ export function render(index) {
     } else if (state == 2) { // Spiral 2 trail
         hsv(0.66, 1, 1); // Blue
     } else { // Untouched pixels
-        hsv(0, 0, 1); // White
+        // FIXED: Set untouched pixels to black instead of white
+        hsv(0, 0, 0);
     }
 }

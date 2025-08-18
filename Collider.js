@@ -117,7 +117,8 @@ function runSpirals(delta) {
         if (abs(pixelsState[i]) < 0.01) pixelsState[i] = 0;
     }
 
-    var totalAnimationSteps = 60 * spiralPitch;
+    // FIXED: Use 36 (max new column height) instead of 60
+    var totalAnimationSteps = 36 * spiralPitch;
     var basePeriod = 0.2 * spiralPitch;
     var finalPeriod = basePeriod / spiralSpeed;
 
@@ -145,7 +146,8 @@ function runSpirals(delta) {
     var columnNumber2 = bodyColumnsReversed[horizontalStep];
     var startIndex2 = columnStartIndices[columnNumber2];
     var len2 = columnLengths[columnNumber2];
-    var blueVerticalOffset = (60 - 1) - masterVerticalStep;
+    // FIXED: Use 36 (max new column height) instead of 60
+    var blueVerticalOffset = (36 - 1) - masterVerticalStep;
     var litPixel2 = -1;
     if (blueVerticalOffset >= 0 && blueVerticalOffset < len2) {
         litPixel2 = isReversed[columnNumber2] ? (startIndex2 + len2 - 1) - blueVerticalOffset : startIndex2 + blueVerticalOffset;
@@ -160,8 +162,10 @@ function runSpirals(delta) {
     if (litPixel1 != -1 && litPixel1 == litPixel2) {
         epicenterIndex = litPixel1;
         collision = true;
-    } else if (((columnNumber1 == 12 && columnNumber2 == 13) || (columnNumber1 == 13 && columnNumber2 == 12)) && masterVerticalStep >= 29 && masterVerticalStep <= 30) {
-        epicenterIndex = 570;
+    // FIXED: Update collision logic for 36-column layout
+    } else if (((columnNumber1 == 18 && columnNumber2 == 19) || (columnNumber1 == 19 && columnNumber2 == 18)) && masterVerticalStep >= 17 && masterVerticalStep <= 18) {
+        // Set epicenter to the middle of the back
+        epicenterIndex = columnStartIndices[18] + floor(columnLengths[18] / 2);
         collision = true;
     }
 

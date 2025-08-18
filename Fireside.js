@@ -71,14 +71,16 @@ export function beforeRender(delta) {
                 var selfIndex = start + p;
                 var belowIndex = start + p + 1;
                 // The heat of this pixel is the heat of the one below it, cooled slightly.
-                heat[selfIndex] = heat[belowIndex] - random(cooling) / len;
+                // FIXED: Use a constant denominator (36, the max col length) for uniform cooling.
+                heat[selfIndex] = heat[belowIndex] - random(cooling) / 36;
             }
         } else {
             // For normal columns, "up" means iterating from low index to high.
             for (var p = len - 1; p > 0; p--) {
                 var selfIndex = start + p;
                 var belowIndex = start + p - 1;
-                heat[selfIndex] = heat[belowIndex] - random(cooling) / len;
+                // FIXED: Use a constant denominator (36, the max col length) for uniform cooling.
+                heat[selfIndex] = heat[belowIndex] - random(cooling) / 36;
             }
         }
     }
