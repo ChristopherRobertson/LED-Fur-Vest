@@ -1,10 +1,32 @@
+// =================================================================
+//
+//                        GEOMETRY DEFINITION
+//
+// This file contains the master definition for the coat's geometry
+// and provides pre-computed lookup tables for use by the patterns.
+// It should be included before any pattern files.
+//
+// =================================================================
 
-// === VEST GEOMETRY (36 columns, 1200 LEDs) ===
-// 1-based indexing for compatibility with your original patterns
+
+// --- Master Geometry Definition ---
+// This is the single source of truth for the coat's physical layout.
+// The first '0' is a spacer for 1-based indexing.
 var columnLengths = [0,25,25,35,36,36,36,36,36,35,35,36,36,36,36,36,35,25,25,25,25,35,36,36,36,36,36,35,35,36,36,36,36,36,35,25,25];
+
+
+// --- Pre-computed Variables ---
 var numColumns = columnLengths.length - 1;
 
-// Compute start indices (1-based)
+// Calculate the maximum number of LEDs in any single column
+var maxColumnLength = 0;
+for (var i = 1; i <= numColumns; i++) {
+    if (columnLengths[i] > maxColumnLength) {
+        maxColumnLength = columnLengths[i];
+    }
+}
+
+// Compute the starting pixel index for each column (1-based)
 var columnStartIndices = array(numColumns + 1);
 var acc = 0;
 columnStartIndices[0] = 0;
@@ -13,20 +35,42 @@ for (var col = 1; col <= numColumns; col++) {
   acc += columnLengths[col];
 }
 
-// Serpentine wiring: odd columns bottom->top, even columns top->bottom
+// Create a lookup table for serpentine wiring (true if column is top-to-bottom)
 var isReversed = array(numColumns + 1);
 for (var col = 1; col <= numColumns; col++) {
   isReversed[col] = (col % 2 == 0);
 }
 
-// All columns are body columns on the vest
-var bodyColumns = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36];
+// Create a lookup table to quickly find which column a pixel belongs to
+var pixelToColumn = array(pixelCount);
+// Create a lookup table for a pixel's normalized (0-1) position within its column
+var pixelToColumnPos = array(pixelCount);
+
+for (var col = 1; col <= numColumns; col++) {
+    var start = columnStartIndices[col];
+    var len = columnLengths[col];
+    for (var i = 0; i < len; i++) {
+        var pixelIndex = start + i;
+        pixelToColumn[pixelIndex] = col;
+        // Calculate normalized position (0.0 at bottom, 1.0 at top)
+        var pos = (len > 1) ? (i / (len - 1)) : 0;
+        pixelToColumnPos[pixelIndex] = isReversed[col] ? (1 - pos) : pos;
+    }
+}
+
+
+// --- Column Groupings ---
+// An array of all columns that are part of the main body
+var bodyColumns = [];
+for (var i = 1; i <= numColumns; i++) {
+    bodyColumns.push(i);
+}
+
+// A reversed copy of the body columns, useful for symmetrical patterns
 var bodyColumnsReversed = array(bodyColumns.length);
 for (var i = 0; i < bodyColumns.length; i++) {
   bodyColumnsReversed[i] = bodyColumns[bodyColumns.length - 1 - i];
 }
-
-// pixelCount comes from Pixelblaze; do not override it here.
 
 /**
  * Fireworks (Mark IV)
@@ -144,22 +188,25 @@ function startExplosion() {
 }
 
 function renderLaunch(index) {
-    var rocketHead = floor(rocketProgress);
+    var rocketHeadPos = floor(rocketProgress); // This is height from bottom (0-indexed)
+    var rocketPixelIndex;
 
-    // Check if this pixel is in the launch column
-    if (index >= launchColumnStart && index < launchColumnStart + launchColumnLength) {
-        var pixelOffset = index - launchColumnStart;
-        if (launchColumnReversed) {
-            pixelOffset = (launchColumnLength - 1) - pixelOffset;
-        }
-
-        // Light up just the "head" of the rocket
-        if (pixelOffset == rocketHead) {
-            hsv(burstHue, 0.5, 1); // Use the upcoming burst's color, but desaturated
-        } else {
-            hsv(0, 0, 0);
-        }
+    if (launchColumnReversed) {
+        // For a reversed column, the "bottom" pixel has the highest index.
+        // We start at the bottom and move to lower indices as the rocket rises.
+        var bottomPixelIndex = launchColumnStart + launchColumnLength - 1;
+        rocketPixelIndex = bottomPixelIndex - rocketHeadPos;
     } else {
+        // For a normal column, the "bottom" pixel has the lowest index.
+        // We start at the bottom and move to higher indices.
+        rocketPixelIndex = launchColumnStart + rocketHeadPos;
+    }
+
+    // Light up only the single pixel for the rocket's head.
+    if (index == rocketPixelIndex) {
+        hsv(burstHue, 0.5, 1);
+    } else {
+        // Turn all other pixels off.
         hsv(0, 0, 0);
     }
 }

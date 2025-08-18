@@ -14,7 +14,7 @@ COL_LED_COUNTS = [
 
 ROT_OFFSET = 0.0   # radians (rotate where column 1 is placed)
 CCW = True         # True = columns increase CCW; False = CW
-SERPENTINE_Z = False  # False = all columns start at base (z=0)
+SERPENTINE_Z = True  # False = all columns start at base (z=0)
 
 # ----------------------------
 # GEOMETRY
