@@ -1,33 +1,4 @@
 
-// === VEST GEOMETRY (36 columns, 1200 LEDs) ===
-// 1-based indexing for compatibility with your original patterns
-var columnLengths = [0,25,25,35,36,36,36,36,36,35,35,36,36,36,36,36,35,25,25,25,25,35,36,36,36,36,36,35,35,36,36,36,36,36,35,25,25];
-var numColumns = columnLengths.length - 1;
-
-// Compute start indices (1-based)
-var columnStartIndices = array(numColumns + 1);
-var acc = 0;
-columnStartIndices[0] = 0;
-for (var col = 1; col <= numColumns; col++) {
-  columnStartIndices[col] = acc;
-  acc += columnLengths[col];
-}
-
-// Serpentine wiring: odd columns bottom->top, even columns top->bottom
-var isReversed = array(numColumns + 1);
-for (var col = 1; col <= numColumns; col++) {
-  isReversed[col] = (col % 2 == 0);
-}
-
-// All columns are body columns on the vest
-var bodyColumns = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36];
-var bodyColumnsReversed = array(bodyColumns.length);
-for (var i = 0; i < bodyColumns.length; i++) {
-  bodyColumnsReversed[i] = bodyColumns[bodyColumns.length - 1 - i];
-}
-
-// pixelCount comes from Pixelblaze; do not override it here.
-
 /**
  * Fireside (Columnar Method)
  *
@@ -71,16 +42,16 @@ export function beforeRender(delta) {
                 var selfIndex = start + p;
                 var belowIndex = start + p + 1;
                 // The heat of this pixel is the heat of the one below it, cooled slightly.
-                // FIXED: Use a constant denominator (36, the max col length) for uniform cooling.
-                heat[selfIndex] = heat[belowIndex] - random(cooling) / 36;
+                // FIXED: Use maxColumnLength for uniform cooling across all columns.
+                heat[selfIndex] = heat[belowIndex] - random(cooling) / maxColumnLength;
             }
         } else {
             // For normal columns, "up" means iterating from low index to high.
             for (var p = len - 1; p > 0; p--) {
                 var selfIndex = start + p;
                 var belowIndex = start + p - 1;
-                // FIXED: Use a constant denominator (36, the max col length) for uniform cooling.
-                heat[selfIndex] = heat[belowIndex] - random(cooling) / 36;
+                // FIXED: Use maxColumnLength for uniform cooling across all columns.
+                heat[selfIndex] = heat[belowIndex] - random(cooling) / maxColumnLength;
             }
         }
     }

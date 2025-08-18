@@ -1,33 +1,4 @@
 
-// === VEST GEOMETRY (36 columns, 1200 LEDs) ===
-// 1-based indexing for compatibility with your original patterns
-var columnLengths = [0,25,25,35,36,36,36,36,36,35,35,36,36,36,36,36,35,25,25,25,25,35,36,36,36,36,36,35,35,36,36,36,36,36,35,25,25];
-var numColumns = columnLengths.length - 1;
-
-// Compute start indices (1-based)
-var columnStartIndices = array(numColumns + 1);
-var acc = 0;
-columnStartIndices[0] = 0;
-for (var col = 1; col <= numColumns; col++) {
-  columnStartIndices[col] = acc;
-  acc += columnLengths[col];
-}
-
-// Serpentine wiring: odd columns bottom->top, even columns top->bottom
-var isReversed = array(numColumns + 1);
-for (var col = 1; col <= numColumns; col++) {
-  isReversed[col] = (col % 2 == 0);
-}
-
-// All columns are body columns on the vest
-var bodyColumns = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36];
-var bodyColumnsReversed = array(bodyColumns.length);
-for (var i = 0; i < bodyColumns.length; i++) {
-  bodyColumnsReversed[i] = bodyColumns[bodyColumns.length - 1 - i];
-}
-
-// pixelCount comes from Pixelblaze; do not override it here.
-
 /**
  * Equalizer (Sound-Reactive with Pre-Emphasis and AGC)
  *
@@ -66,36 +37,25 @@ var maxLoudness = 0.1
 var pixelToColumn = array(pixelCount);
 var pixelToColumnPos = array(pixelCount);
 var isInitialized = false;
-// FIXED: Create a dedicated list for the 32 columns that will display the EQ
-var equalizerColumns = [3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34];
+// FIXED: Programmatically select the central 32 columns for the EQ display
+var numEqBands = 32;
+var eqColumnsToTrim = numColumns - numEqBands;
+var equalizerColumns = bodyColumns.slice(eqColumnsToTrim / 2, numColumns - (eqColumnsToTrim / 2));
+
 var isEqColumn = array(numColumns + 1);
 var balancedData = array(equalizerColumns.length);
 
-function initialize() {
-    for (var i = 0; i < equalizerColumns.length; i++) {
-        isEqColumn[equalizerColumns[i]] = true;
-    }
-
-    for (var col = 1; col <= numColumns; col++) {
-        var start = columnStartIndices[col];
-        var len = columnLengths[col];
-        for (var i = 0; i < len; i++) {
-            var pixelIndex = start + i;
-            pixelToColumn[pixelIndex] = col;
-            var pos = i / (len - 1);
-            pixelToColumnPos[pixelIndex] = isReversed[col] ? 1 - pos : pos;
-        }
-    }
-    isInitialized = true;
+// Initialize the isEqColumn lookup table once.
+for (var i = 0; i < equalizerColumns.length; i++) {
+    isEqColumn[equalizerColumns[i]] = true;
 }
+
 
 // =================================================================
 //                        MAIN LOGIC
 // =================================================================
 
 export function beforeRender(delta) {
-    if (!isInitialized) initialize();
-
     // --- Stage 1: Pre-Emphasis EQ ---
     // Boost higher frequencies to make them visually competitive with the bass.
     for (var i = 0; i < equalizerColumns.length; i++) {
@@ -153,8 +113,8 @@ export function render(index) {
 
     var h, s = 1, v = 0;
 
-    if (pos < barHeight) {
-        h = 0.333 - (pos / barHeight) * 0.333;
+    if (pos > 1 - barHeight) {
+        h = 0.333 - pos * 0.333; // Color shifts from green at bottom to yellow at top
         v = 1;
     }
 
