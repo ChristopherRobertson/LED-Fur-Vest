@@ -1,33 +1,4 @@
 
-// === VEST GEOMETRY (36 columns, 1200 LEDs) ===
-// 1-based indexing for compatibility with your original patterns
-var columnLengths = [0,25,25,35,36,36,36,36,36,35,35,36,36,36,36,36,35,25,25,25,25,35,36,36,36,36,36,35,35,36,36,36,36,36,35,25,25];
-var numColumns = columnLengths.length - 1;
-
-// Compute start indices (1-based)
-var columnStartIndices = array(numColumns + 1);
-var acc = 0;
-columnStartIndices[0] = 0;
-for (var col = 1; col <= numColumns; col++) {
-  columnStartIndices[col] = acc;
-  acc += columnLengths[col];
-}
-
-// Serpentine wiring: odd columns bottom->top, even columns top->bottom
-var isReversed = array(numColumns + 1);
-for (var col = 1; col <= numColumns; col++) {
-  isReversed[col] = (col % 2 == 0);
-}
-
-// All columns are body columns on the vest
-var bodyColumns = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36];
-var bodyColumnsReversed = array(bodyColumns.length);
-for (var i = 0; i < bodyColumns.length; i++) {
-  bodyColumnsReversed[i] = bodyColumns[bodyColumns.length - 1 - i];
-}
-
-// pixelCount comes from Pixelblaze; do not override it here.
-
 /**
  * Particle Collider
  *
@@ -38,17 +9,6 @@ for (var i = 0; i < bodyColumns.length; i++) {
  *
  * The speed and pitch are hardcoded to fixed values.
  */
-
-
-// The physical order of the 18 main body columns.
-// A reversed copy for the second spiral
-var numBodyColumns = bodyColumns.length;
-
-// The starting pixel index for each column number (1-24).
-
-// The number of LEDs in each column number (1-24).
-
-// A boolean lookup to quickly check if a column is wired in reverse.
 
 // --- Fixed Animation Parameters ---
 var pitch = 5.25; // Hardcoded to 25% of the original slider's range
@@ -62,8 +22,8 @@ var accumulator = 0; // Custom timer to allow for resets
 var newCycle = true; // Flag to signal a reset is needed
 
 export function beforeRender(delta) {
-    // FIXED: Use 36 (max new column height) instead of 60
-    var totalAnimationSteps = 36 * pitch;
+    // FIXED: Use maxColumnLength instead of a hardcoded value
+    var totalAnimationSteps = maxColumnLength * pitch;
     var basePeriod = 0.2 * pitch;
     var finalPeriod = basePeriod / speed;
 
@@ -90,7 +50,7 @@ export function beforeRender(delta) {
     step = floor(progress * totalAnimationSteps);
 
     // --- Calculate positions for both spirals ---
-    var horizontalStep = step % numBodyColumns;
+    var horizontalStep = step % bodyColumns.length;
     var masterVerticalStep = floor(step / pitch);
 
     // --- Spiral 1 (Upwards, Red) ---
@@ -115,8 +75,8 @@ export function beforeRender(delta) {
     var len2 = columnLengths[columnNumber2];
     var reversed2 = isReversed[columnNumber2];
 
-    // FIXED: Use 36 (max new column height) instead of 60
-    var blueVerticalOffset = (36 - 1) - masterVerticalStep;
+    // FIXED: Use maxColumnLength instead of a hardcoded value
+    var blueVerticalOffset = (maxColumnLength - 1) - masterVerticalStep;
 
     if (blueVerticalOffset < 0 || blueVerticalOffset >= len2) {
         litPixel2 = -1;
