@@ -66,12 +66,14 @@ var maxLoudness = 0.1
 var pixelToColumn = array(pixelCount);
 var pixelToColumnPos = array(pixelCount);
 var isInitialized = false;
-var isBodyColumn = array(numColumns + 1);
-var balancedData = array(bodyColumns.length);
+// FIXED: Create a dedicated list for the 32 columns that will display the EQ
+var equalizerColumns = [3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34];
+var isEqColumn = array(numColumns + 1);
+var balancedData = array(equalizerColumns.length);
 
 function initialize() {
-    for (var i = 0; i < bodyColumns.length; i++) {
-        isBodyColumn[bodyColumns[i]] = true;
+    for (var i = 0; i < equalizerColumns.length; i++) {
+        isEqColumn[equalizerColumns[i]] = true;
     }
 
     for (var col = 1; col <= numColumns; col++) {
@@ -96,15 +98,15 @@ export function beforeRender(delta) {
 
     // --- Stage 1: Pre-Emphasis EQ ---
     // Boost higher frequencies to make them visually competitive with the bass.
-    for (var i = 0; i < bodyColumns.length; i++) {
-        var boost = 1 + (i / bodyColumns.length) * eqBalance;
+    for (var i = 0; i < equalizerColumns.length; i++) {
+        var boost = 1 + (i / equalizerColumns.length) * eqBalance;
         balancedData[i] = frequencyData[i] * boost;
     }
 
     // --- Stage 2: Automatic Gain Control (AGC) ---
     // Find the loudest frequency band in the *balanced* data.
     var currentMax = 0;
-    for (var i = 0; i < bodyColumns.length; i++) {
+    for (var i = 0; i < equalizerColumns.length; i++) {
         currentMax = max(currentMax, balancedData[i]);
     }
 
@@ -118,8 +120,8 @@ export function beforeRender(delta) {
     }
 
     // --- Stage 3: Update Bar Heights ---
-    for (var i = 0; i < bodyColumns.length; i++) {
-        var col = bodyColumns[i];
+    for (var i = 0; i < equalizerColumns.length; i++) {
+        var col = equalizerColumns[i];
 
         // Normalize the balanced data by the dynamic max loudness to get a 0-1 value
         var normalizedValue = balancedData[i] / maxLoudness;
@@ -140,7 +142,7 @@ export function beforeRender(delta) {
 export function render(index) {
     var col = pixelToColumn[index];
     // This is the most robust way to guarantee sleeves are dark.
-    if (!col || !isBodyColumn[col]) {
+    if (!col || !isEqColumn[col]) {
         rgb(0, 0, 0);
         return;
     }
