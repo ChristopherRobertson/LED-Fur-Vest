@@ -1,33 +1,4 @@
 
-// === VEST GEOMETRY (36 columns, 1200 LEDs) ===
-// 1-based indexing for compatibility with your original patterns
-var columnLengths = [0,25,25,35,36,36,36,36,36,35,35,36,36,36,36,36,35,25,25,25,25,35,36,36,36,36,36,35,35,36,36,36,36,36,35,25,25];
-var numColumns = columnLengths.length - 1;
-
-// Compute start indices (1-based)
-var columnStartIndices = array(numColumns + 1);
-var acc = 0;
-columnStartIndices[0] = 0;
-for (var col = 1; col <= numColumns; col++) {
-  columnStartIndices[col] = acc;
-  acc += columnLengths[col];
-}
-
-// Serpentine wiring: odd columns bottom->top, even columns top->bottom
-var isReversed = array(numColumns + 1);
-for (var col = 1; col <= numColumns; col++) {
-  isReversed[col] = (col % 2 == 0);
-}
-
-// All columns are body columns on the vest
-var bodyColumns = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36];
-var bodyColumnsReversed = array(bodyColumns.length);
-for (var i = 0; i < bodyColumns.length; i++) {
-  bodyColumnsReversed[i] = bodyColumns[bodyColumns.length - 1 - i];
-}
-
-// pixelCount comes from Pixelblaze; do not override it here.
-
 /**
  * Collider Explosion
  *
@@ -37,8 +8,6 @@ for (var i = 0; i < bodyColumns.length; i++) {
  * explosion emanates from the point of impact.
  * The entire sequence then resets and starts over.
  */
-
-var numBodyColumns = bodyColumns.length;
 
 // --- Fixed Animation Parameters ---
 var spiralPitch = 5.25;
@@ -117,7 +86,8 @@ function runSpirals(delta) {
         if (abs(pixelsState[i]) < 0.01) pixelsState[i] = 0;
     }
 
-    var totalAnimationSteps = 60 * spiralPitch;
+    // FIXED: Use maxColumnLength instead of a hardcoded value
+    var totalAnimationSteps = maxColumnLength * spiralPitch;
     var basePeriod = 0.2 * spiralPitch;
     var finalPeriod = basePeriod / spiralSpeed;
 
@@ -129,7 +99,7 @@ function runSpirals(delta) {
 
     var progress = spiralAccumulator / finalPeriod;
     var step = floor(progress * totalAnimationSteps);
-    var horizontalStep = step % numBodyColumns;
+    var horizontalStep = step % bodyColumns.length;
     var masterVerticalStep = floor(step / spiralPitch);
 
     // --- Spiral 1 ---
@@ -145,7 +115,8 @@ function runSpirals(delta) {
     var columnNumber2 = bodyColumnsReversed[horizontalStep];
     var startIndex2 = columnStartIndices[columnNumber2];
     var len2 = columnLengths[columnNumber2];
-    var blueVerticalOffset = (60 - 1) - masterVerticalStep;
+    // FIXED: Use maxColumnLength instead of a hardcoded value
+    var blueVerticalOffset = (maxColumnLength - 1) - masterVerticalStep;
     var litPixel2 = -1;
     if (blueVerticalOffset >= 0 && blueVerticalOffset < len2) {
         litPixel2 = isReversed[columnNumber2] ? (startIndex2 + len2 - 1) - blueVerticalOffset : startIndex2 + blueVerticalOffset;
@@ -160,8 +131,10 @@ function runSpirals(delta) {
     if (litPixel1 != -1 && litPixel1 == litPixel2) {
         epicenterIndex = litPixel1;
         collision = true;
-    } else if (((columnNumber1 == 12 && columnNumber2 == 13) || (columnNumber1 == 13 && columnNumber2 == 12)) && masterVerticalStep >= 29 && masterVerticalStep <= 30) {
-        epicenterIndex = 570;
+    // FIXED: Update collision logic for 36-column layout
+    } else if (((columnNumber1 == 18 && columnNumber2 == 19) || (columnNumber1 == 19 && columnNumber2 == 18)) && masterVerticalStep >= 17 && masterVerticalStep <= 18) {
+        // Set epicenter to the middle of the back
+        epicenterIndex = columnStartIndices[18] + floor(columnLengths[18] / 2);
         collision = true;
     }
 
