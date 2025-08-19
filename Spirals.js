@@ -52,7 +52,7 @@ for (var col = 1; col <= numColumns; col++) {
     for (var i = 0; i < len; i++) {
         var pixelIndex = start + i;
         pixelToColumn[pixelIndex] = col;
-        // Calculate normalized position (0.0 at bottom, 1.0 at top)
+        // Calculate normalized position (0.0 at top, 1.0 at bottom)
         var pos = (len > 1) ? (i / (len - 1)) : 0;
         pixelToColumnPos[pixelIndex] = isReversed[col] ? (1 - pos) : pos;
     }
@@ -73,121 +73,61 @@ for (var i = 0; i < bodyColumns.length; i++) {
 }
 
 /**
- * Particle Collider
+ * 3D Swirl
  *
- * This pattern features two spiraling trails, one red and one blue,
- * moving in opposite directions. When the two lead pixels collide,
- * or when they meet at the center back, the animation resets and
- * starts over from the beginning.
- *
- * The speed and pitch are hardcoded to fixed values.
+ * This pattern creates a 3D swirling effect around the wearer.
+ * The speed of the swirl increases towards the bottom of the coat.
  */
 
-// --- Fixed Animation Parameters ---
-var pitch = 5.25; // Hardcoded to 25% of the original slider's range
-var speed = 0.1; // Hardcoded to 90% of the original slider's range
+// --- UI Controls ---
+export var speed = 0.5;
+export var hue = 0;
+
+export function sliderSpeed(v) { speed = 0.1 + v * 2; }
+export function sliderHue(v) { hue = v; }
 
 // --- Animation State ---
-var pixelsState = array(pixelCount);
-var litPixel1, litPixel2;
-var step;
-var accumulator = 0; // Custom timer to allow for resets
-var newCycle = true; // Flag to signal a reset is needed
+var isMapInitialized = false;
+var allX = array(pixelCount), allY = array(pixelCount), allZ = array(pixelCount);
+var minZ = 999, maxZ = -999;
 
 export function beforeRender(delta) {
-    // FIXED: Use maxColumnLength instead of a hardcoded value
-    var totalAnimationSteps = maxColumnLength * pitch;
-    var basePeriod = 0.2 * pitch;
-    var finalPeriod = basePeriod / speed;
-
-    // Use our custom accumulator timer. It's incremented by the time since the last frame.
-    accumulator += delta / 1000;
-
-    // If the timer completes a full cycle without a collision, signal a new cycle.
-    if (accumulator >= finalPeriod) {
-        accumulator = 0;
-        newCycle = true;
-    }
-
-    // --- Reset logic ---
-    // If a new cycle has been signaled, clear the trails and reset the flag.
-    if (newCycle) {
-        for (var i = 0; i < pixelCount; i++) {
-            pixelsState[i] = 0;
-        }
-        newCycle = false;
-    }
-
-    // Calculate the animation progress from our custom timer.
-    var progress = accumulator / finalPeriod;
-    step = floor(progress * totalAnimationSteps);
-
-    // --- Calculate positions for both spirals ---
-    var horizontalStep = step % bodyColumns.length;
-    var masterVerticalStep = floor(step / pitch);
-
-    // --- Spiral 1 (Upwards, Red) ---
-    var columnNumber1 = bodyColumns[horizontalStep];
-    var startIndex1 = columnStartIndices[columnNumber1];
-    var len1 = columnLengths[columnNumber1];
-    var reversed1 = isReversed[columnNumber1];
-
-    if (masterVerticalStep >= len1) {
-        litPixel1 = -1;
-    } else {
-        if (reversed1) {
-            litPixel1 = (startIndex1 + len1 - 1) - masterVerticalStep;
-        } else {
-            litPixel1 = startIndex1 + masterVerticalStep;
-        }
-    }
-
-    // --- Spiral 2 (Downwards, Blue) ---
-    var columnNumber2 = bodyColumnsReversed[horizontalStep];
-    var startIndex2 = columnStartIndices[columnNumber2];
-    var len2 = columnLengths[columnNumber2];
-    var reversed2 = isReversed[columnNumber2];
-
-    // FIXED: Use maxColumnLength instead of a hardcoded value
-    var blueVerticalOffset = (maxColumnLength - 1) - masterVerticalStep;
-
-    if (blueVerticalOffset < 0 || blueVerticalOffset >= len2) {
-        litPixel2 = -1;
-    } else {
-        if (reversed2) {
-            litPixel2 = (startIndex2 + len2 - 1) - blueVerticalOffset;
-        } else {
-            litPixel2 = startIndex2 + blueVerticalOffset;
-        }
-    }
-
-    // Mark the pixels in our state array.
-    if (litPixel1 != -1) pixelsState[litPixel1] = 1;
-    if (litPixel2 != -1) pixelsState[litPixel2] = 2;
-
-    // --- Event Detection and Reset ---
-    // If the spirals meet at the same pixel, reset.
-    if (litPixel1 != -1 && litPixel1 == litPixel2) {
-        accumulator = 0;
-        newCycle = true;
-    }
-    // FIXED: If the spirals meet at the center-back columns (18 and 19 for 36-col layout)
-    // AND they are at the new vertical midpoint, reset.
-    else if (((columnNumber1 == 18 && columnNumber2 == 19) || (columnNumber1 == 19 && columnNumber2 == 18)) && masterVerticalStep >= 17 && masterVerticalStep <= 18) {
-        accumulator = 0;
-        newCycle = true;
-    }
+  // This pattern is purely generative based on time and coordinates,
+  // so no state updates are needed in beforeRender.
 }
 
-export function render(index) {
-    var state = pixelsState[index];
-
-    if (state == 1) { // Spiral 1 trail
-        hsv(0, 1, 1); // Red
-    } else if (state == 2) { // Spiral 2 trail
-        hsv(0.66, 1, 1); // Blue
-    } else { // Untouched pixels
-        // FIXED: Set untouched pixels to black instead of white
-        hsv(0, 0, 0);
+export function render3D(index, x, y, z) {
+    // --- One-time Map Analysis ---
+    if (!isMapInitialized) {
+        allX[index] = x; allY[index] = y; allZ[index] = z;
+        minZ = min(minZ, z);
+        maxZ = max(maxZ, z);
+        if (index == pixelCount - 1) isMapInitialized = true;
+        return;
     }
+
+    // --- Swirl Logic ---
+    // Calculate the angle of the pixel around the center axis
+    var angle = atan2(y, x);
+
+    // Normalize Z position from 0 (bottom) to 1 (top)
+    var zNorm = (z - minZ) / (maxZ - minZ);
+
+    // The "twist" of the swirl. More twist at the bottom.
+    var twist = (1 - zNorm) * 5;
+
+    // The base speed of the swirl over time
+    var time_component = time(0.1 * speed);
+
+    // The speed of the swirl increases down the coat (lower zNorm)
+    var speed_component = (1 - zNorm) * time(0.05 * speed) * 3;
+
+    // Combine angle and time components to get the final value
+    var v = angle / (PI * 2) + time_component + speed_component;
+
+    // Add the twist
+    v += zNorm * twist;
+
+    // Use triangle wave to create pulsing bands
+    hsv(hue, 1, triangle(v));
 }

@@ -52,7 +52,7 @@ for (var col = 1; col <= numColumns; col++) {
     for (var i = 0; i < len; i++) {
         var pixelIndex = start + i;
         pixelToColumn[pixelIndex] = col;
-        // Calculate normalized position (0.0 at bottom, 1.0 at top)
+        // Calculate normalized position (0.0 at top, 1.0 at bottom)
         var pos = (len > 1) ? (i / (len - 1)) : 0;
         pixelToColumnPos[pixelIndex] = isReversed[col] ? (1 - pos) : pos;
     }
@@ -113,7 +113,11 @@ var isInitialized = false;
 // FIXED: Programmatically select the central 32 columns for the EQ display
 var numEqBands = 32;
 var eqColumnsToTrim = numColumns - numEqBands;
-var equalizerColumns = bodyColumns.slice(eqColumnsToTrim / 2, numColumns - (eqColumnsToTrim / 2));
+var sideMargin = eqColumnsToTrim / 2;
+var equalizerColumns = array(numEqBands);
+for (var i = 0; i < numEqBands; i++) {
+    equalizerColumns[i] = bodyColumns[i + sideMargin];
+}
 
 var isEqColumn = array(numColumns + 1);
 var balancedData = array(equalizerColumns.length);

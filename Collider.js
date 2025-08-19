@@ -52,7 +52,8 @@ for (var col = 1; col <= numColumns; col++) {
     for (var i = 0; i < len; i++) {
         var pixelIndex = start + i;
         pixelToColumn[pixelIndex] = col;
-        // Calculate normalized position (0.0 at bottom, 1.0 at top)
+        // Calculate normalized position (0.0 at top, 1.0 at bottom)
+
         var pos = (len > 1) ? (i / (len - 1)) : 0;
         pixelToColumnPos[pixelIndex] = isReversed[col] ? (1 - pos) : pos;
     }
@@ -204,10 +205,14 @@ function runSpirals(delta) {
     if (litPixel1 != -1 && litPixel1 == litPixel2) {
         epicenterIndex = litPixel1;
         collision = true;
-    // FIXED: Update collision logic for 36-column layout
-    } else if (((columnNumber1 == 18 && columnNumber2 == 19) || (columnNumber1 == 19 && columnNumber2 == 18)) && masterVerticalStep >= 17 && masterVerticalStep <= 18) {
-        // Set epicenter to the middle of the back
-        epicenterIndex = columnStartIndices[18] + floor(columnLengths[18] / 2);
+    // As per user request, move back collision to columns 27 and 28
+    } else if (((columnNumber1 == 27 && columnNumber2 == 28) || (columnNumber1 == 28 && columnNumber2 == 27)) && masterVerticalStep >= 17 && masterVerticalStep <= 18) {
+        // Set epicenter to the midpoint between the two columns
+        var p1_idx = columnStartIndices[27] + floor(columnLengths[27] / 2);
+        var p2_idx = columnStartIndices[28] + floor(columnLengths[28] / 2);
+        // This is an approximation since we don't have the 3D map here.
+        // We'll just pick the midpoint index.
+        epicenterIndex = floor((p1_idx + p2_idx) / 2);
         collision = true;
     }
 
