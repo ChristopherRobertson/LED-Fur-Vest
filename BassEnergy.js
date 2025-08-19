@@ -168,6 +168,5 @@ export function render3D(index, x, y, z) {
         v = 1 - (dist / maxRadius);
         v = v * v; // Square for a steeper falloff
     }
-
     hsv(baseHue, 1, v);
 }

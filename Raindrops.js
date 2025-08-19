@@ -58,7 +58,6 @@ for (var col = 1; col <= numColumns; col++) {
     }
 }
 
-
 // --- Column Groupings ---
 // An array of all columns that are part of the main body
 var bodyColumns = array(numColumns);
