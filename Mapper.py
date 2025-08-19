@@ -22,19 +22,18 @@ SERPENTINE_LOGIC_REVERSED = True # Set to true to match user's diagnosis
 # ----------------------------
 # GEOMETRY - 3D Cylindrical Map
 # ----------------------------
-
-# Find the maximum number of LEDs in any column to determine the total height
-max_led_count = 0
-for count in COL_LED_COUNTS:
-    if count > max_led_count:
-        max_led_count = count
-
-# Total height of the mapped area in inches
-total_height_in = (max_led_count - 1) * LED_PITCH_IN
+circ_in = NUM_COLS * ARC_SPACING_IN
+radius_in = circ_in / (2.0 * math.pi)
+dtheta = ARC_SPACING_IN / radius_in
+dir_mult = 1.0 if CCW else -1.0
 
 coords_in = []
 for col_idx in range(NUM_COLS):
     col_num = col_idx + 1
+    theta = ROT_OFFSET + dir_mult * (col_idx * dtheta)
+    x_base = radius_in * math.cos(theta)
+    y_base = radius_in * math.sin(theta)
+
     n_leds = COL_LED_COUNTS[col_idx]
 
     # Generate z-positions based on wiring direction

@@ -110,10 +110,11 @@ var bhX, bhY, bhZ; // Black hole's current interpolated position
 var PI2 = PI * 2;
 
 // --- Movement State ---
-var currentPointX, currentPointY, currentPointZ;
-var targetPointX, targetPointY, targetPointZ;
+var currentTheta, currentZ;
+var targetTheta, targetZ;
 var moveTimer = 9999;
 var moveDuration = 5000;
+var radius = 7.162; // Radius of the cylinder from Mapper.py
 
 // --- Starfield State ---
 var starHue = array(pixelCount);
@@ -133,24 +134,29 @@ export function beforeRender(delta) {
 
     moveTimer += delta;
 
-    // A `while` loop is more robust for handling the transition.
-    // This ensures that even if a lot of time has passed (e.g. a lag spike),
-    // the animation catches up correctly without pausing.
     while (moveTimer >= moveDuration) {
         moveTimer -= moveDuration;
         pickNewTarget();
-        moveDuration = (2000 + random(4000)) / wanderSpeed; // 2-6 second travel time
+        moveDuration = (2000 + random(4000)) / wanderSpeed;
     }
 
-    // Interpolate the black hole's position between the current and target points
     var progress = moveTimer / moveDuration;
-    if (moveDuration == 0) progress = 1; // Prevent division by zero
+    if (moveDuration == 0) progress = 1;
+    progress = progress * progress * (3 - 2 * progress);
 
-    progress = progress * progress * (3 - 2 * progress); // Smoothstep easing
+    // Interpolate Z and Theta separately
+    var dTheta = targetTheta - currentTheta;
+    // If distance is > 1/2 circle, go the other way
+    if (abs(dTheta) > PI) {
+      dTheta = dTheta - sign(dTheta) * PI2;
+    }
 
-    bhX = currentPointX + (targetPointX - currentPointX) * progress;
-    bhY = currentPointY + (targetPointY - currentPointY) * progress;
-    bhZ = currentPointZ + (targetPointZ - currentPointZ) * progress;
+    var bhTheta = currentTheta + dTheta * progress;
+    var bhZ = currentZ + (targetZ - currentZ) * progress;
+
+    // Convert back to cartesian for rendering
+    bhX = radius * cos(bhTheta);
+    bhY = radius * sin(bhTheta);
 }
 
 export function render3D(index, x, y, z) {
@@ -159,9 +165,14 @@ export function render3D(index, x, y, z) {
         allX[index] = x; allY[index] = y; allZ[index] = z;
         if (index == pixelCount - 1) {
             isMapInitialized = true;
-            pickNewTarget(); // Set the very first target
-            pickNewTarget(); // And the second, to initialize current and target
-            bhX = currentPointX; bhY = currentPointY; bhZ = currentPointZ;
+            // Initialize to a random point
+            var targetIndex = floor(random(pixelCount));
+            targetTheta = atan2(allY[targetIndex], allX[targetIndex]);
+            targetZ = allZ[targetIndex];
+            pickNewTarget(); // Set the first real target
+            bhX = radius * cos(currentTheta);
+            bhY = radius * sin(currentTheta);
+            bhZ = currentZ;
         }
     }
 
@@ -222,13 +233,11 @@ export function render3D(index, x, y, z) {
 
 function pickNewTarget() {
     // The old target becomes the new starting point
-    currentPointX = targetPointX;
-    currentPointY = targetPointY;
-    currentPointZ = targetPointZ;
+    currentTheta = targetTheta;
+    currentZ = targetZ;
 
     // Pick a new random pixel on the coat as the next destination
     var targetIndex = floor(random(pixelCount));
-    targetPointX = allX[targetIndex];
-    targetPointY = allY[targetIndex];
-    targetPointZ = allZ[targetIndex];
+    targetTheta = atan2(allY[targetIndex], allX[targetIndex]);
+    targetZ = allZ[targetIndex];
 }

@@ -112,4 +112,3 @@ export function render(index) {
 export function render3D(index, x, y, z) {
   render(index);
 }
-
