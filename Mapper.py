@@ -55,10 +55,6 @@ for col_idx in range(NUM_COLS):
             y_pos = i * LED_PITCH_IN
             y_positions.append(y_pos)
 
-        # As per user diagnosis, the coordinate list for even columns must be
-        # reversed to match the data path.
-        y_positions.reverse()
-
     # Add the coordinates for this column to the list
     for y in y_positions:
         coords_in.append([round(x_pos, 3), round(y, 3), 0.0])
