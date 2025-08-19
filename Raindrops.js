@@ -71,6 +71,7 @@ var bodyColumnsReversed = array(bodyColumns.length);
 for (var i = 0; i < bodyColumns.length; i++) {
   bodyColumnsReversed[i] = bodyColumns[bodyColumns.length - 1 - i];
 }
+
 /**
  * Raindrops (Digital Rain Effect)
  *
