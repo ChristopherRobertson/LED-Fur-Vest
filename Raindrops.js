@@ -160,6 +160,5 @@ export function render3D(index, x, y, z) {
             v = max(v, waveValue * fade);
         }
     }
-
     hsv(hue, 1 - v, v * v); // Use saturation to make it look like water
 }

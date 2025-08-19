@@ -192,7 +192,28 @@ export function render3D(index, x, y, z) {
                 h = pulseHues[i];
             }
         }
+        return;
     }
 
+    // --- Distance Calculation ---
+    // Calculate squared distance to both epicenters
+    var dfSq = (x-frontX)*(x-frontX) + (y-frontY)*(y-frontY) + (z-frontZ)*(z-frontZ);
+    var dbSq = (x-backX)*(x-backX) + (y-backY)*(y-backY) + (z-backZ)*(z-backZ);
+
+    // Find the distance to the *nearer* of the two cores
+    var minDistSq = min(dfSq, dbSq);
+
+    // --- Rendering Logic ---
+    // The max radius of the core is controlled by the smoothed bass and gain
+    var maxRadius = displayBass * gain * 5;
+    var maxRadiusSq = maxRadius * maxRadius;
+
+    var v = 0;
+    if (minDistSq < maxRadiusSq) {
+        var dist = sqrt(minDistSq);
+        // Brightest at the center, fading to the edge
+        v = 1 - (dist / maxRadius);
+        v = v * v; // Square for a steeper falloff
+    }
     hsv(h, s, v*v);
 }
