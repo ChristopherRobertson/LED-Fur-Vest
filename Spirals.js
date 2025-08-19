@@ -86,12 +86,10 @@ export var hue = 0;
 export function sliderSpeed(v) { speed = 0.1 + v * 2; }
 export function sliderHue(v) { hue = v; }
 
-
 // --- Animation State ---
 var isMapInitialized = false;
 var allX = array(pixelCount), allY = array(pixelCount), allZ = array(pixelCount);
 var minZ = 999, maxZ = -999;
-
 
 export function beforeRender(delta) {
   // This pattern is purely generative based on time and coordinates,
