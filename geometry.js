@@ -61,9 +61,9 @@ for (var col = 1; col <= numColumns; col++) {
 
 // --- Column Groupings ---
 // An array of all columns that are part of the main body
-var bodyColumns = array(numColumns);
-for (var i = 0; i < numColumns; i++) {
-    bodyColumns[i] = i + 1;
+var bodyColumns = [];
+for (var i = 1; i <= numColumns; i++) {
+    bodyColumns.push(i);
 }
 
 // A reversed copy of the body columns, useful for symmetrical patterns
@@ -71,45 +71,3 @@ var bodyColumnsReversed = array(bodyColumns.length);
 for (var i = 0; i < bodyColumns.length; i++) {
   bodyColumnsReversed[i] = bodyColumns[bodyColumns.length - 1 - i];
 }
-
-/**
- * Tracer
- *
- * This is a diagnostic pattern. It lights a single white pixel and moves
- * it sequentially through the LED strip, following the exact data path.
- * This helps to verify the physical wiring order and the pixel map.
- */
-
-// --- UI Controls ---
-export var speed = 0.2;
-export function sliderSpeed(v) {
-  speed = 0.01 + v * v;
-}
-
-// --- Animation State ---
-var litPixel = 0;
-var accumulator = 0;
-
-export function beforeRender(delta) {
-  accumulator += delta * speed;
-  litPixel = floor(accumulator);
-
-  if (litPixel >= pixelCount) {
-    litPixel = 0;
-    accumulator = 0;
-  }
-}
-
-export function render(index) {
-  if (index == litPixel) {
-    rgb(1, 1, 1);
-  } else {
-    rgb(0, 0, 0);
-  }
-}
-
-// Add render3D so this pattern works when a 3D map is active.
-export function render3D(index, x, y, z) {
-  render(index);
-}
-
