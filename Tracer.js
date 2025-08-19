@@ -107,3 +107,8 @@ export function render(index) {
     rgb(0, 0, 0);
   }
 }
+
+// Add render3D so this pattern works when a 3D map is active.
+export function render3D(index, x, y, z) {
+  render(index);
+}
