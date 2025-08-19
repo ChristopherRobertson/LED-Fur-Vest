@@ -58,7 +58,6 @@ for (var col = 1; col <= numColumns; col++) {
     }
 }
 
-
 // --- Column Groupings ---
 // An array of all columns that are part of the main body
 var bodyColumns = array(numColumns);
@@ -71,6 +70,7 @@ var bodyColumnsReversed = array(bodyColumns.length);
 for (var i = 0; i < bodyColumns.length; i++) {
   bodyColumnsReversed[i] = bodyColumns[bodyColumns.length - 1 - i];
 }
+
 /**
  * Raindrops (Digital Rain Effect)
  *
