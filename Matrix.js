@@ -8,7 +8,6 @@
 //
 // =================================================================
 
-
 // --- Master Geometry Definition ---
 // This is the single source of truth for the coat's physical layout.
 // The first '0' is a spacer for 1-based indexing.
