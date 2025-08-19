@@ -7,10 +7,13 @@
 // It should be included before any pattern files.
 //
 // =================================================================
+
+
 // --- Master Geometry Definition ---
 // This is the single source of truth for the coat's physical layout.
 // The first '0' is a spacer for 1-based indexing.
 var columnLengths = [0,25,25,35,36,36,36,36,36,35,35,36,36,36,36,36,35,25,25,25,25,35,36,36,36,36,36,35,35,36,36,36,36,36,35,25,25];
+
 
 // --- Pre-computed Variables ---
 var numColumns = columnLengths.length - 1;
@@ -143,6 +146,7 @@ export function render3D(index, x, y, z) {
         var dx = x - ripple.x;
         var dy = y - ripple.y;
         var dist = sqrt(dx*dx + dy*dy); // 2D distance on the unrolled map
+
         var age = currentTime - ripple.birthTime;
         if (age < 0) age += 1;
 

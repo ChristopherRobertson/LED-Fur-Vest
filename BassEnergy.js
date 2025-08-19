@@ -54,7 +54,7 @@ for (var col = 1; col <= numColumns; col++) {
         pixelToColumn[pixelIndex] = col;
         // Calculate normalized position (0.0 at top, 1.0 at bottom)
         var pos = (len > 1) ? (i / (len - 1)) : 0;
-        pixelToColumnPos[pixelIndex] = isReversed[col] ? (1 - pos) : pos;
+        pixelToColumnPos[pixelIndex] = isReversed[col] ? pos : (1 - pos);
     }
 }
 
@@ -72,78 +72,125 @@ for (var i = 0; i < bodyColumns.length; i++) {
   bodyColumnsReversed[i] = bodyColumns[bodyColumns.length - 1 - i];
 }
 
-/*
-  Music-Responsive 3D Dual Energy Cores
-
-  This pattern generates two "energy cores" on the front and back of the
-  coat that swell and throb in time with the music's bass energy.
-
-  This version REQUIRES the Pixelblaze Sensor Board to be attached and enabled.
-  - The size and brightness of the cores are tied to the bass volume.
-  - The color of the cores can be controlled via the UI.
-*/
+/**
+ * BassEnergy (Pulse from Back)
+ *
+ * This pattern generates waves of energy that pulse outwards from the
+ * bottom-center of the back. It features a beat detector that speeds
+ * up the pulse rate during sustained bass notes.
+ */
 
 // --- UI Controls ---
-export var gain = 0.5;      // Controls the maximum size and brightness of the cores
-export var smoothing = 0.5;   // How much to smooth the bass response (0-1)
-export var baseHue = 0.66;    // Base color of the pulse (0-1, 0.66 is blue)
+export var sensitivity = 0.6;
+export var speed = 0.5;
 
-export function sliderGain(v) { gain = v; }
-export function sliderSmoothing(v) { smoothing = v; }
-export function sliderHue(v) { baseHue = v; }
+export function sliderSensitivity(v) { sensitivity = v; }
+export function sliderSpeed(v) { speed = v; }
 
 
-// --- Sensor Board Data ---
-export var frequencyData;
+// --- Beat Detection & Pulse State ---
+var MAX_PULSES = 20;
+var pulses = array(MAX_PULSES);
+for (var i = 0; i < MAX_PULSES; i++) pulses[i] = -1; // -1 indicates an inactive slot
+var pulseHues = array(MAX_PULSES);
+var pulsePointer = 0;
+var avgBass = 0;
+var sustainedBassTimer = 0;
+var timeSinceLastPulse = 9999;
 
-// --- State Variables ---
-var displayBass = 0.01; // Initialize with a small value to make it visible
-var isMapInitialized = false;
 
 // --- 3D Map & Epicenter Storage ---
+var isMapInitialized = false;
 var allX = array(pixelCount), allY = array(pixelCount), allZ = array(pixelCount);
-var frontX, frontY, frontZ;
 var backX, backY, backZ;
 
-
-// =================================================================
-//                        MAIN LOGIC
-// =================================================================
 
 export function beforeRender(delta) {
     if (!isMapInitialized) return;
 
-    // --- Calculate Bass Energy ---
-    // Sum the energy from the lowest frequency bins
-    var rawBass = frequencyData[0] + frequencyData[1] + frequencyData[2];
+    timeSinceLastPulse += delta;
 
-    // Smooth the bass value using an exponential moving average.
-    // The smoothing factor determines how much of the previous value to keep.
-    var decay = smoothing * 0.2 + 0.79; // Map slider (0-1) to a useful range (0.79-0.99)
-    displayBass = displayBass * decay + rawBass * (1 - decay);
+    // --- Beat Detection ---
+    var rawBass = frequencyData[0] + frequencyData[1] + frequencyData[2];
+    avgBass = avgBass * 0.9 + rawBass * 0.1; // Exponential moving average
+
+    var threshold = 1.2 + (1 - sensitivity) * 3;
+    var sustainThreshold = 1.1 + (1 - sensitivity) * 2;
+
+    // Check for sustained bass
+    if (rawBass > avgBass * sustainThreshold) {
+        sustainedBassTimer += delta;
+    } else {
+        sustainedBassTimer = 0;
+    }
+
+    // Determine cooldown based on sustained bass
+    var cooldown = 350 - (sustainedBassTimer / 1000) * 200;
+    cooldown = max(80, cooldown); // Clamp to a minimum cooldown
+
+    // Trigger a new pulse
+    if (rawBass > avgBass * threshold && timeSinceLastPulse > cooldown) {
+        pulses[pulsePointer] = time(1);
+        pulseHues[pulsePointer] = random(1);
+        pulsePointer = (pulsePointer + 1) % MAX_PULSES;
+        timeSinceLastPulse = 0;
+    }
+
+    // --- Prune old pulses ---
+    var currentTime = time(1);
+    for (var i = 0; i < MAX_PULSES; i++) {
+        if (pulses[i] == -1) continue;
+
+        var age = currentTime - pulses[i];
+        if (age < 0) age += 1;
+        if (age > 1.5 / (1 + speed * 3)) {
+            pulses[i] = -1; // Deactivate the pulse
+        }
+    }
 }
 
-
 export function render3D(index, x, y, z) {
-    // --- One-time Map Capture & Epicenter Calculation ---
     if (!isMapInitialized) {
         allX[index] = x; allY[index] = y; allZ[index] = z;
         if (index == pixelCount - 1) {
-            // --- Front Epicenter (between cols 9 & 10) ---
-            var p1_idx = columnStartIndices[9] + floor(columnLengths[9] / 2);
-            var p2_idx = columnStartIndices[10] + floor(columnLengths[10] / 2);
-            frontX = (allX[p1_idx] + allX[p2_idx]) / 2;
-            frontY = (allY[p1_idx] + allY[p2_idx]) / 2;
-            frontZ = (allZ[p1_idx] + allZ[p2_idx]) / 2;
-
-            // --- Back Epicenter (between cols 27 & 28) ---
-            var p3_idx = columnStartIndices[27] + floor(columnLengths[27] / 2);
-            var p4_idx = columnStartIndices[28] + floor(columnLengths[28] / 2);
-            backX = (allX[p3_idx] + allX[p4_idx]) / 2;
-            backY = (allY[p3_idx] + allY[p4_idx]) / 2;
-            backZ = (allZ[p3_idx] + allZ[p4_idx]) / 2;
-
+            // --- Back Epicenter (bottom of cols 27 & 28) ---
+            // Col 27 is reversed, so its last pixel is at the bottom.
+            var p1_idx = columnStartIndices[27] + columnLengths[27] - 1;
+            // Col 28 is normal, so its first pixel is at the bottom.
+            var p2_idx = columnStartIndices[28];
+            backX = (allX[p1_idx] + allX[p2_idx]) / 2;
+            backY = (allY[p1_idx] + allY[p2_idx]) / 2;
+            backZ = (allZ[p1_idx] + allZ[p2_idx]) / 2;
             isMapInitialized = true;
+        }
+        return;
+    }
+
+    var v = 0;
+    var h = 0;
+    var s = 1;
+    var currentTime = time(1);
+
+    for (var i = 0; i < MAX_PULSES; i++) {
+        if (pulses[i] == -1) continue;
+
+        var age = currentTime - pulses[i];
+        if (age < 0) age += 1;
+
+        var waveFront = age * (1 + speed * 4);
+        var dx = x - backX, dy = y - backY, dz = z - backZ;
+        var dist = sqrt(dx*dx + dy*dy + dz*dz);
+
+        var distFromWave = abs(dist - waveFront * 2.5);
+
+        if (distFromWave < 0.2) {
+            var waveValue = 1 - (distFromWave / 0.2);
+            var fade = 1 - age * (0.6 * (1 + speed * 3));
+            var newV = waveValue * fade;
+            if (newV > v) {
+                v = newV;
+                h = pulseHues[i];
+            }
         }
         return;
     }
@@ -168,6 +215,5 @@ export function render3D(index, x, y, z) {
         v = 1 - (dist / maxRadius);
         v = v * v; // Square for a steeper falloff
     }
-
-    hsv(baseHue, 1, v);
+    hsv(h, s, v*v);
 }

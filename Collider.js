@@ -53,7 +53,6 @@ for (var col = 1; col <= numColumns; col++) {
         var pixelIndex = start + i;
         pixelToColumn[pixelIndex] = col;
         // Calculate normalized position (0.0 at top, 1.0 at bottom)
-
         var pos = (len > 1) ? (i / (len - 1)) : 0;
         pixelToColumnPos[pixelIndex] = isReversed[col] ? (1 - pos) : pos;
     }
