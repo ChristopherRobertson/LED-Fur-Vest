@@ -12,37 +12,52 @@ COL_LED_COUNTS = [
     25, 25, 25, 25, 35, 36, 36, 36, 36, 36, 35, 35, 36, 36, 36, 36, 36, 35, 25, 25
 ]
 
-ROT_OFFSET = 0.0   # radians (rotate where column 1 is placed)
-CCW = True         # True = columns increase CCW; False = CW
-SERPENTINE_Z = True  # False = all columns start at base (z=0)
+# Serpentine wiring is physically handled, this script just generates the map
+# of the physical (x,y,z) coordinates for each pixel *in order*.
 
 # ----------------------------
-# GEOMETRY
+# GEOMETRY - Unrolled 2D Map
 # ----------------------------
-circ_in = NUM_COLS * ARC_SPACING_IN
-radius_in = circ_in / (2.0 * math.pi)
-dtheta = ARC_SPACING_IN / radius_in
-dir_mult = 1.0 if CCW else -1.0
+
+# Find the maximum number of LEDs in any column to determine the total height
+max_led_count = 0
+for count in COL_LED_COUNTS:
+    if count > max_led_count:
+        max_led_count = count
+
+# Total height of the mapped area in inches
+total_height_in = (max_led_count - 1) * LED_PITCH_IN
 
 coords_in = []
 for col_idx in range(NUM_COLS):
     col_num = col_idx + 1
-    theta = ROT_OFFSET + dir_mult * (col_idx * dtheta)
-    x_base = radius_in * math.cos(theta)
-    y_base = radius_in * math.sin(theta)
-
     n_leds = COL_LED_COUNTS[col_idx]
-    if SERPENTINE_Z:
-        if col_num % 2 == 1:
-            z_positions = [i * LED_PITCH_IN for i in range(n_leds)]
-        else:
-            top_z = (n_leds - 1) * LED_PITCH_IN
-            z_positions = [top_z - i * LED_PITCH_IN for i in range(n_leds)]
-    else:
-        z_positions = [i * LED_PITCH_IN for i in range(n_leds)]
 
-    for z in z_positions:
-        coords_in.append([round(x_base, 3), round(y_base, 3), round(z, 3)])
+    # X position is determined by the column index
+    x_pos = col_idx * ARC_SPACING_IN
+
+    # Y positions depend on the wiring direction for that column
+    # The user specified:
+    # Odd columns: bottom-to-top wiring
+    # Even columns: top-to-bottom wiring
+
+    y_positions = []
+    if col_num % 2 == 1: # Odd column (bottom-to-top)
+        # The first pixel (i=0) is at the bottom.
+        # Y increases downwards, so bottom pixels have higher Y values.
+        for i in range(n_leds):
+            y_pos = total_height_in - (i * LED_PITCH_IN)
+            y_positions.append(y_pos)
+    else: # Even column (top-to-bottom)
+        # The first pixel (i=0) is at the top.
+        # Top pixels have lower Y values.
+        for i in range(n_leds):
+            y_pos = i * LED_PITCH_IN
+            y_positions.append(y_pos)
+
+    # Add the coordinates for this column to the list
+    for y in y_positions:
+        coords_in.append([round(x_pos, 3), round(y, 3), 0.0])
 
 # ----------------------------
 # OUTPUT JSON

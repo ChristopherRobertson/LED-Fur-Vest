@@ -64,7 +64,6 @@ for (var col = 1; col <= numColumns; col++) {
 var bodyColumns = array(numColumns);
 for (var i = 0; i < numColumns; i++) {
     bodyColumns[i] = i + 1;
-
 }
 
 // A reversed copy of the body columns, useful for symmetrical patterns
