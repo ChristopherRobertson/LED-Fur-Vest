@@ -206,12 +206,8 @@ function runSpirals(delta) {
         collision = true;
     // As per user request, move back collision to columns 27 and 28
     } else if (((columnNumber1 == 27 && columnNumber2 == 28) || (columnNumber1 == 28 && columnNumber2 == 27)) && masterVerticalStep >= 17 && masterVerticalStep <= 18) {
-        // Set epicenter to the midpoint between the two columns
-        var p1_idx = columnStartIndices[27] + floor(columnLengths[27] / 2);
-        var p2_idx = columnStartIndices[28] + floor(columnLengths[28] / 2);
-        // This is an approximation since we don't have the 3D map here.
-        // We'll just pick the midpoint index.
-        epicenterIndex = floor((p1_idx + p2_idx) / 2);
+        // Set epicenter to the middle of column 27 to ensure a valid pixel index.
+        epicenterIndex = columnStartIndices[27] + floor(columnLengths[27] / 2);
         collision = true;
     }
 

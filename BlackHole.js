@@ -82,8 +82,8 @@ for (var i = 0; i < bodyColumns.length; i++) {
  */
 
 // --- UI Controls ---
-var r1 = 0.1; // Radius of the black center
-var r2 = 0.2; // Outer radius of the event horizon
+var r1 = 2.0; // Radius of the black center
+var r2 = 4.0; // Outer radius of the event horizon
 var swirlSpeed = 0.2;
 var wanderSpeed = 0.5; // Controls how fast it moves between points
 
@@ -91,11 +91,11 @@ var wanderSpeed = 0.5; // Controls how fast it moves between points
 var starDensity = 0.75;
 
 export function sliderRadius1(v) {
-    r1 = v * 0.5;
+    r1 = v * 5; // Allow radius up to 5 inches
     if (r2 < r1) r2 = r1;
 }
 export function sliderRadius2(v) {
-    var newR2 = v * 0.5;
+    var newR2 = v * 10; // Allow outer radius up to 10 inches
     if (newR2 >= r1) r2 = newR2;
 }
 export function sliderSwirlSpeed(v) {

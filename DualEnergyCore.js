@@ -89,7 +89,7 @@ export function sliderWobbleSpeed(v) { wobbleSpeed = 0.2 + v * 2; }
 export function sliderHue(v) { hue = v; }
 
 // --- Sensor Board Data ---
-export var frequencyData;
+export var frequencyData = array(32);
 
 // --- State Machine ---
 var IDLE = 0, EXPANDING = 1, WOBBLING = 2, CONTRACTING = 3;
