@@ -61,9 +61,10 @@ for (var col = 1; col <= numColumns; col++) {
 
 // --- Column Groupings ---
 // An array of all columns that are part of the main body
-var bodyColumns = [];
-for (var i = 1; i <= numColumns; i++) {
-    bodyColumns.push(i);
+var bodyColumns = array(numColumns);
+for (var i = 0; i < numColumns; i++) {
+    bodyColumns[i] = i + 1;
+
 }
 
 // A reversed copy of the body columns, useful for symmetrical patterns
@@ -168,7 +169,6 @@ export function render3D(index, x, y, z) {
         v = 1 - (dist / maxRadius);
         v = v * v; // Square for a steeper falloff
     }
-
 
     hsv(baseHue, 1, v);
 }
