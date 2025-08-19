@@ -73,81 +73,77 @@ for (var i = 0; i < bodyColumns.length; i++) {
 }
 
 /**
- * BassEnergy (Pulse from Back)
+ * Dual Energy Core
  *
- * This pattern generates waves of energy that pulse outwards from the
- * bottom-center of the back. It features a beat detector that speeds
- * up the pulse rate during sustained bass notes.
+ * This pattern generates two "energy cores" on the front and back of the
+ * coat that swell on a beat and wobble during sustained bass.
  */
 
 // --- UI Controls ---
 export var sensitivity = 0.6;
-export var speed = 0.5;
+export var wobbleSpeed = 0.5;
+export var hue = 0.66;
 
 export function sliderSensitivity(v) { sensitivity = v; }
-export function sliderSpeed(v) { speed = v; }
-
+export function sliderWobbleSpeed(v) { wobbleSpeed = 0.2 + v * 2; }
+export function sliderHue(v) { hue = v; }
 
 // --- Sensor Board Data ---
 export var frequencyData = array(32);
 
-// --- Beat Detection & Pulse State ---
-var MAX_PULSES = 20;
-var pulses = array(MAX_PULSES);
-for (var i = 0; i < MAX_PULSES; i++) pulses[i] = -1; // -1 indicates an inactive slot
-var pulseHues = array(MAX_PULSES);
-var pulsePointer = 0;
+// --- State Machine ---
+var IDLE = 0, EXPANDING = 1, WOBBLING = 2, CONTRACTING = 3;
+var state = IDLE;
+var stateTimer = 0;
+var coreRadius = 0;
+
+// --- Beat Detection ---
 var avgBass = 0;
 var sustainedBassTimer = 0;
-var timeSinceLastPulse = 9999;
-
 
 // --- 3D Map & Epicenter Storage ---
 var isMapInitialized = false;
 var allX = array(pixelCount), allY = array(pixelCount), allZ = array(pixelCount);
-var backX, backY, backZ;
+var frontX, frontY, frontZ, backX, backY, backZ;
 
 
 export function beforeRender(delta) {
     if (!isMapInitialized) return;
 
-    timeSinceLastPulse += delta;
+    stateTimer += delta;
 
-    // --- Beat Detection ---
+    // --- Beat & Sustain Detection ---
     var rawBass = frequencyData[0] + frequencyData[1] + frequencyData[2];
-    avgBass = avgBass * 0.9 + rawBass * 0.1; // Exponential moving average
-
+    avgBass = avgBass * 0.9 + rawBass * 0.1;
     var threshold = 1.2 + (1 - sensitivity) * 3;
     var sustainThreshold = 1.1 + (1 - sensitivity) * 2;
+    var isSustained = (rawBass > avgBass * sustainThreshold);
+    var isBeat = (rawBass > avgBass * threshold);
 
-    // Check for sustained bass
-    if (rawBass > avgBass * sustainThreshold) {
-        sustainedBassTimer += delta;
-    } else {
-        sustainedBassTimer = 0;
-    }
+    if (isSustained) sustainedBassTimer += delta; else sustainedBassTimer = 0;
 
-    // Determine cooldown based on sustained bass
-    var cooldown = 350 - (sustainedBassTimer / 1000) * 200;
-    cooldown = max(80, cooldown); // Clamp to a minimum cooldown
-
-    // Trigger a new pulse
-    if (rawBass > avgBass * threshold && timeSinceLastPulse > cooldown) {
-        pulses[pulsePointer] = time(1);
-        pulseHues[pulsePointer] = random(1);
-        pulsePointer = (pulsePointer + 1) % MAX_PULSES;
-        timeSinceLastPulse = 0;
-    }
-
-    // --- Prune old pulses ---
-    var currentTime = time(1);
-    for (var i = 0; i < MAX_PULSES; i++) {
-        if (pulses[i] == -1) continue;
-
-        var age = currentTime - pulses[i];
-        if (age < 0) age += 1;
-        if (age > 1.5 / (1 + speed * 3)) {
-            pulses[i] = -1; // Deactivate the pulse
+    // --- State Machine Logic ---
+    if (state == IDLE && isBeat) {
+        state = EXPANDING;
+        stateTimer = 0;
+    } else if (state == EXPANDING) {
+        coreRadius = stateTimer / 100; // Expand over 100ms
+        if (stateTimer > 100) {
+            state = WOBBLING;
+            stateTimer = 0;
+        }
+    } else if (state == WOBBLING) {
+        var wobble = 1 + sin(time(wobbleSpeed * 0.2)) * 0.2;
+        coreRadius = wobble;
+        if (!isSustained) {
+            state = CONTRACTING;
+            stateTimer = 0;
+        }
+    } else if (state == CONTRACTING) {
+        coreRadius = 1 - stateTimer / 500; // Contract over 500ms
+        if (coreRadius <= 0) {
+            state = IDLE;
+            coreRadius = 0;
         }
     }
 }
@@ -156,46 +152,38 @@ export function render3D(index, x, y, z) {
     if (!isMapInitialized) {
         allX[index] = x; allY[index] = y; allZ[index] = z;
         if (index == pixelCount - 1) {
-            // --- Back Epicenter (bottom of cols 27 & 28) ---
-            // Col 27 is reversed, so its last pixel is at the bottom.
-            var p1_idx = columnStartIndices[27] + columnLengths[27] - 1;
-            // Col 28 is normal, so its first pixel is at the bottom.
-            var p2_idx = columnStartIndices[28];
-            backX = (allX[p1_idx] + allX[p2_idx]) / 2;
-            backY = (allY[p1_idx] + allY[p2_idx]) / 2;
-            backZ = (allZ[p1_idx] + allZ[p2_idx]) / 2;
+            // --- Front Epicenter (between cols 9 & 10) ---
+            var p1_idx = columnStartIndices[9] + floor(columnLengths[9] / 2);
+            var p2_idx = columnStartIndices[10] + floor(columnLengths[10] / 2);
+            frontX = (allX[p1_idx] + allX[p2_idx]) / 2;
+            frontY = (allY[p1_idx] + allY[p2_idx]) / 2;
+            frontZ = (allZ[p1_idx] + allZ[p2_idx]) / 2;
+
+            // --- Back Epicenter (between cols 27 & 28) ---
+            var p3_idx = columnStartIndices[27] + floor(columnLengths[27] / 2);
+            var p4_idx = columnStartIndices[28] + floor(columnLengths[28] / 2);
+            backX = (allX[p3_idx] + allX[p4_idx]) / 2;
+            backY = (allY[p3_idx] + allY[p4_idx]) / 2;
+            backZ = (allZ[p3_idx] + allZ[p4_idx]) / 2;
+
             isMapInitialized = true;
         }
         return;
     }
 
     var v = 0;
-    var h = 0;
-    var s = 1;
-    var currentTime = time(1);
+    if (coreRadius > 0) {
+        var dfSq = (x-frontX)*(x-frontX) + (y-frontY)*(y-frontY) + (z-frontZ)*(z-frontZ);
+        var dbSq = (x-backX)*(x-backX) + (y-backY)*(y-backY) + (z-backZ)*(z-backZ);
+        var minDist = sqrt(min(dfSq, dbSq));
 
-    for (var i = 0; i < MAX_PULSES; i++) {
-        if (pulses[i] == -1) continue;
+        var maxRadius = coreRadius * 4; // Arbitrary scaling for visual size
 
-        var age = currentTime - pulses[i];
-        if (age < 0) age += 1;
-
-        var waveFront = age * (1 + speed * 4);
-        var dx = x - backX, dy = y - backY, dz = z - backZ;
-        var dist = sqrt(dx*dx + dy*dy + dz*dz);
-
-        var distFromWave = abs(dist - waveFront * 2.5);
-
-        if (distFromWave < 0.2) {
-            var waveValue = 1 - (distFromWave / 0.2);
-            var fade = 1 - age * (0.6 * (1 + speed * 3));
-            var newV = waveValue * fade;
-            if (newV > v) {
-                v = newV;
-                h = pulseHues[i];
-            }
+        if (minDist < maxRadius) {
+            v = 1 - (minDist / maxRadius);
+            v = v * v;
         }
     }
 
-    hsv(h, s, v*v);
+    hsv(hue, 1, v);
 }
