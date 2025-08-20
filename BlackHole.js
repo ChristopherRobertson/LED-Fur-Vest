@@ -73,175 +73,53 @@ for (var i = 0; i < bodyColumns.length; i++) {
 }
 
 /**
- * Black Hole (Finale - Moving)
+ * Black Hole (DEBUGGING VERSION)
  *
- * This pattern creates a moving black hole on the surface of the coat.
- * It features a swirling, multicolored event horizon with a gravitational
- * lensing effect, all set against a backdrop of twinkling stars.
- * The black hole moves along the surface from one random pixel to another.
+ * This pattern renders a simple, stationary white circle to debug
+ * the 3D coordinate mapping and rendering.
  */
 
 // --- UI Controls ---
-var r1 = 1.0; // Radius of the black center
-var r2 = 2.0; // Outer radius of the event horizon
-var swirlSpeed = 0.2;
-var wanderSpeed = 0.5; // Controls how fast it moves between points
-
-// FIXED: Hardcoded star density. Change this value to adjust the number of stars.
-var starDensity = 0.75;
-
-export function sliderRadius1(v) {
-    r1 = v * 5; // Allow radius up to 5 inches
-    if (r2 < r1) r2 = r1;
-}
-export function sliderRadius2(v) {
-    var newR2 = v * 10; // Allow outer radius up to 10 inches
-    if (newR2 >= r1) r2 = newR2;
-}
-export function sliderSwirlSpeed(v) {
-    swirlSpeed = 0.05 + v * 0.5;
-}
-export function sliderWanderSpeed(v) {
-    wanderSpeed = 0.1 + v * 0.9;
+export var radius = 5.0;
+export function sliderRadius(v) {
+    radius = v * 20; // Control radius from 0 to 20 inches
 }
 
-// --- Animation State ---
-var bhX, bhY, bhZ; // Black hole's current interpolated position
-var PI2 = PI * 2;
-
-// --- Movement State ---
-var currentTheta, currentZ;
-var targetTheta, targetZ;
-var moveTimer = 9999;
-var moveDuration = 5000;
-var radius = 7.162; // Radius of the cylinder from Mapper.py
-
-// --- Starfield State ---
-var starHue = array(pixelCount);
-var starPhase = array(pixelCount);
-var isStarsInitialized = false;
-
-// --- Map Initialization ---
+// --- State Variables ---
 var isMapInitialized = false;
 var allX = array(pixelCount), allY = array(pixelCount), allZ = array(pixelCount);
-
-// =================================================================
-//                        MAIN LOGIC
-// =================================================================
+var centerX, centerY, centerZ;
 
 export function beforeRender(delta) {
-    if (!isMapInitialized) return;
-
-    moveTimer += delta;
-
-    while (moveTimer >= moveDuration) {
-        moveTimer -= moveDuration;
-        pickNewTarget();
-        moveDuration = (2000 + random(4000)) / wanderSpeed;
-    }
-
-    var progress = moveTimer / moveDuration;
-    if (moveDuration == 0) progress = 1;
-    progress = progress * progress * (3 - 2 * progress);
-
-    // Interpolate Z and Theta separately
-    var dTheta = targetTheta - currentTheta;
-    // If distance is > 1/2 circle, go the other way
-    if (abs(dTheta) > PI) {
-      dTheta = dTheta - sign(dTheta) * PI2;
-    }
-
-    var bhTheta = currentTheta + dTheta * progress;
-    var bhZ = currentZ + (targetZ - currentZ) * progress;
-
-    // Convert back to cartesian for rendering
-    bhX = radius * cos(bhTheta);
-    bhY = radius * sin(bhTheta);
+  // Movement is disabled for debugging.
 }
 
 export function render3D(index, x, y, z) {
-    // --- One-time Map & Starfield Capture ---
+    // --- One-time Map Capture & Epicenter Calculation ---
     if (!isMapInitialized) {
         allX[index] = x; allY[index] = y; allZ[index] = z;
         if (index == pixelCount - 1) {
+            // --- Center Epicenter (between cols 27 & 28) ---
+            var p1_idx = columnStartIndices[27] + floor(columnLengths[27] / 2);
+            var p2_idx = columnStartIndices[28] + floor(columnLengths[28] / 2);
+            centerX = (allX[p1_idx] + allX[p2_idx]) / 2;
+            centerY = (allY[p1_idx] + allY[p2_idx]) / 2;
+            centerZ = (allZ[p1_idx] + allZ[p2_idx]) / 2;
             isMapInitialized = true;
-            // Initialize to a random point
-            var targetIndex = floor(random(pixelCount));
-            targetTheta = atan2(allY[targetIndex], allX[targetIndex]);
-            targetZ = allZ[targetIndex];
-            pickNewTarget(); // Set the first real target
-            bhX = radius * cos(currentTheta);
-            bhY = radius * sin(currentTheta);
-            bhZ = currentZ;
         }
+        return;
     }
-
-    if (!isStarsInitialized) {
-        if (random(1) < starDensity) {
-            var r = random(1);
-            if (r < 0.4) starHue[index] = 0.66; else if (r < 0.7) starHue[index] = 0.83; else if (r < 0.9) starHue[index] = 0; else starHue[index] = -1;
-            starPhase[index] = random(1);
-        } else {
-            starHue[index] = -2;
-        }
-        if (index == pixelCount - 1) isStarsInitialized = true;
-    }
-
-    if (!isMapInitialized) return;
 
     // --- Distance Calculation ---
-    var dx = x - bhX;
-    var dy = y - bhY;
-    var dz = z - bhZ;
+    var dx = x - centerX;
+    var dy = y - centerY;
+    var dz = z - centerZ;
     var distance = hypot3(dx, dy, dz);
 
     // --- Rendering Logic ---
-    if (distance < r1) {
-        rgb(0, 0, 0); // Singularity
-    } else if (distance <= r2) {
-        // Event Horizon
-        var normalizedDist = (distance - r1) / (r2 - r1);
-        var angle = atan2(dy, dx);
-        var swirl = time(swirlSpeed * 0.1) * PI2;
-        var lensing = 1 - normalizedDist;
-        swirl -= lensing * lensing * 5;
-
-        var noise = perlin(angle * 2, swirl, distance * 5, 1);
-        noise = noise * noise;
-
-        var brightness = (1 - normalizedDist) * noise;
-        var hue = 0.6 + noise * 0.5 - (lensing * 0.2);
-
-        hsv(hue, 1, brightness * 2.0);
+    if (distance < radius) {
+        rgb(1, 1, 1); // Simple white circle
     } else {
-        // Starfield
-        if (starHue[index] > -2) {
-            var twinkle = wave(time(0.1) + starPhase[index]);
-            var h = starHue[index];
-            var s = 1, v = twinkle * twinkle * 0.5;
-            if (h == -1) { s = 0; v *= 0.7; }
-            hsv(h, s, v);
-        } else {
-            rgb(0, 0, 0); // Empty space
-        }
+        rgb(0, 0, 0); // Off
     }
-}
-
-// =================================================================
-//                  HELPER FUNCTIONS
-// =================================================================
-
-function sign(n) {
-  return n > 0 ? 1 : (n < 0 ? -1 : 0);
-}
-
-function pickNewTarget() {
-    // The old target becomes the new starting point
-    currentTheta = targetTheta;
-    currentZ = targetZ;
-
-    // Pick a new random pixel on the coat as the next destination
-    var targetIndex = floor(random(pixelCount));
-    targetTheta = atan2(allY[targetIndex], allX[targetIndex]);
-    targetZ = allZ[targetIndex];
 }
