@@ -1,32 +1,76 @@
+// =================================================================
+//
+//                        GEOMETRY DEFINITION
+//
+// This file contains the master definition for the coat's geometry
+// and provides pre-computed lookup tables for use by the patterns.
+// It should be included before any pattern files.
+//
+// =================================================================
 
-// === VEST GEOMETRY (36 columns, 1200 LEDs) ===
-// 1-based indexing for compatibility with your original patterns
-var columnLengths = [0,25,25,35,36,36,36,36,36,35,35,36,36,36,36,36,35,25,25,25,25,35,36,36,36,36,36,35,35,36,36,36,36,36,35,25,25];
+
+// --- Master Geometry Definition ---
+// This is the single source of truth for the coat's physical layout.
+// The first '0' is a spacer for 1-based indexing.
+var columnLengths = [0, 25, 25, 35, 36, 36, 36, 36, 36, 35, 35, 36, 36, 36, 36, 36, 35, 25, 25, 25, 25, 35, 36, 36, 36, 36, 36, 35, 35, 36, 36, 36, 36, 36, 35, 25, 25];
+
+
+// --- Pre-computed Variables ---
 var numColumns = columnLengths.length - 1;
 
-// Compute start indices (1-based)
+// Calculate the maximum number of LEDs in any single column
+var maxColumnLength = 0;
+for (var i = 1; i <= numColumns; i++) {
+    if (columnLengths[i] > maxColumnLength) {
+        maxColumnLength = columnLengths[i];
+    }
+}
+
+// Compute the starting pixel index for each column (1-based)
 var columnStartIndices = array(numColumns + 1);
 var acc = 0;
 columnStartIndices[0] = 0;
 for (var col = 1; col <= numColumns; col++) {
-  columnStartIndices[col] = acc;
-  acc += columnLengths[col];
+    columnStartIndices[col] = acc;
+    acc += columnLengths[col];
 }
 
-// Serpentine wiring: odd columns bottom->top, even columns top->bottom
+// Create a lookup table for serpentine wiring (true if column is top-to-bottom)
 var isReversed = array(numColumns + 1);
 for (var col = 1; col <= numColumns; col++) {
-  isReversed[col] = (col % 2 == 0);
+    isReversed[col] = (col % 2 == 0);
 }
 
-// All columns are body columns on the vest
-var bodyColumns = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36];
+// Create a lookup table to quickly find which column a pixel belongs to
+var pixelToColumn = array(pixelCount);
+// Create a lookup table for a pixel's normalized (0-1) position within its column
+var pixelToColumnPos = array(pixelCount);
+
+for (var col = 1; col <= numColumns; col++) {
+    var start = columnStartIndices[col];
+    var len = columnLengths[col];
+    for (var i = 0; i < len; i++) {
+        var pixelIndex = start + i;
+        pixelToColumn[pixelIndex] = col;
+        // Calculate normalized position (0.0 at bottom, 1.0 at top)
+        var pos = (len > 1) ? (i / (len - 1)) : 0;
+        pixelToColumnPos[pixelIndex] = isReversed[col] ? (1 - pos) : pos;
+    }
+}
+
+
+// --- Column Groupings ---
+// An array of all columns that are part of the main body
+var bodyColumns = array(numColumns);
+for (var i = 0; i < numColumns; i++) {
+    bodyColumns[i] = i + 1;
+}
+
+// A reversed copy of the body columns, useful for symmetrical patterns
 var bodyColumnsReversed = array(bodyColumns.length);
 for (var i = 0; i < bodyColumns.length; i++) {
-  bodyColumnsReversed[i] = bodyColumns[bodyColumns.length - 1 - i];
+    bodyColumnsReversed[i] = bodyColumns[bodyColumns.length - 1 - i];
 }
-
-// pixelCount comes from Pixelblaze; do not override it here.
 
 /**
  * Black Hole (Finale - Moving)
@@ -38,20 +82,19 @@ for (var i = 0; i < bodyColumns.length; i++) {
  */
 
 // --- UI Controls ---
+// Radii are in normalized units, where the whole coat is ~0.4 units wide
 var r1 = 0.1; // Radius of the black center
 var r2 = 0.2; // Outer radius of the event horizon
 var swirlSpeed = 0.2;
 var wanderSpeed = 0.5; // Controls how fast it moves between points
-
-// FIXED: Hardcoded star density. Change this value to adjust the number of stars.
 var starDensity = 0.75;
 
 export function sliderRadius1(v) {
-    r1 = v * 0.5;
+    r1 = v * 0.5; // Slider range 0 to 0.5
     if (r2 < r1) r2 = r1;
 }
 export function sliderRadius2(v) {
-    var newR2 = v * 0.5;
+    var newR2 = v; // Slider range 0 to 1.0
     if (newR2 >= r1) r2 = newR2;
 }
 export function sliderSwirlSpeed(v) {
@@ -66,8 +109,8 @@ var bhX, bhY, bhZ; // Black hole's current interpolated position
 var PI2 = PI * 2;
 
 // --- Movement State ---
-var currentPointX, currentPointY, currentPointZ;
-var targetPointX, targetPointY, targetPointZ;
+var currentTheta, currentZ, currentRadius;
+var targetTheta, targetZ, targetRadius;
 var moveTimer = 9999;
 var moveDuration = 5000;
 
@@ -80,6 +123,11 @@ var isStarsInitialized = false;
 var isMapInitialized = false;
 var allX = array(pixelCount), allY = array(pixelCount), allZ = array(pixelCount);
 
+// Helper for sign() which is not built-in
+function sign(n) {
+    return n > 0 ? 1 : (n < 0 ? -1 : 0);
+}
+
 // =================================================================
 //                        MAIN LOGIC
 // =================================================================
@@ -89,24 +137,29 @@ export function beforeRender(delta) {
 
     moveTimer += delta;
 
-    // A `while` loop is more robust for handling the transition.
-    // This ensures that even if a lot of time has passed (e.g. a lag spike),
-    // the animation catches up correctly without pausing.
     while (moveTimer >= moveDuration) {
         moveTimer -= moveDuration;
         pickNewTarget();
-        moveDuration = (2000 + random(4000)) / wanderSpeed; // 2-6 second travel time
+        moveDuration = (2000 + random(4000)) / wanderSpeed;
     }
 
-    // Interpolate the black hole's position between the current and target points
     var progress = moveTimer / moveDuration;
-    if (moveDuration == 0) progress = 1; // Prevent division by zero
+    if (moveDuration == 0) progress = 1;
+    progress = progress * progress * (3 - 2 * progress); // Smoothstep
 
-    progress = progress * progress * (3 - 2 * progress); // Smoothstep easing
+    // Interpolate Z, Theta, and Radius separately
+    var dTheta = targetTheta - currentTheta;
+    if (abs(dTheta) > PI) {
+        dTheta = dTheta - sign(dTheta) * PI2;
+    }
 
-    bhX = currentPointX + (targetPointX - currentPointX) * progress;
-    bhY = currentPointY + (targetPointY - currentPointY) * progress;
-    bhZ = currentPointZ + (targetPointZ - currentPointZ) * progress;
+    var bhTheta = currentTheta + dTheta * progress;
+    var bhZ = currentZ + (targetZ - currentZ) * progress;
+    var bhRadius = currentRadius + (targetRadius - currentRadius) * progress;
+
+    // Convert back to cartesian for rendering
+    bhX = bhRadius * cos(bhTheta);
+    bhY = bhRadius * sin(bhTheta);
 }
 
 export function render3D(index, x, y, z) {
@@ -115,9 +168,11 @@ export function render3D(index, x, y, z) {
         allX[index] = x; allY[index] = y; allZ[index] = z;
         if (index == pixelCount - 1) {
             isMapInitialized = true;
-            pickNewTarget(); // Set the very first target
-            pickNewTarget(); // And the second, to initialize current and target
-            bhX = currentPointX; bhY = currentPointY; bhZ = currentPointZ;
+            pickNewTarget();
+            pickNewTarget(); // Set the first real target
+            bhZ = currentZ;
+            bhX = currentRadius * cos(currentTheta);
+            bhY = currentRadius * sin(currentTheta);
         }
     }
 
@@ -155,7 +210,7 @@ export function render3D(index, x, y, z) {
         noise = noise * noise;
 
         var brightness = (1 - normalizedDist) * noise;
-        var hue = 0.6 + noise * 0.5 - (lensing * 0.2);
+        var hue = 0.1 + noise * 0.1 - (lensing * 0.1);
 
         hsv(hue, 1, brightness * 2.0);
     } else {
@@ -172,19 +227,17 @@ export function render3D(index, x, y, z) {
     }
 }
 
-// =================================================================
-//                  HELPER FUNCTIONS
-// =================================================================
-
 function pickNewTarget() {
     // The old target becomes the new starting point
-    currentPointX = targetPointX;
-    currentPointY = targetPointY;
-    currentPointZ = targetPointZ;
+    currentTheta = targetTheta;
+    currentZ = targetZ;
+    currentRadius = targetRadius;
 
     // Pick a new random pixel on the coat as the next destination
     var targetIndex = floor(random(pixelCount));
-    targetPointX = allX[targetIndex];
-    targetPointY = allY[targetIndex];
-    targetPointZ = allZ[targetIndex];
+    var tx = allX[targetIndex];
+    var ty = allY[targetIndex];
+    targetZ = allZ[targetIndex];
+    targetTheta = atan2(ty, tx);
+    targetRadius = hypot(tx, ty);
 }
