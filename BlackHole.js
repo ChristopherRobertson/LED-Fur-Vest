@@ -8,7 +8,6 @@
 //
 // =================================================================
 
-
 // --- Master Geometry Definition ---
 // This is the single source of truth for the coat's physical layout.
 // The first '0' is a spacer for 1-based indexing.
@@ -73,12 +72,10 @@ for (var i = 0; i < bodyColumns.length; i++) {
 }
 
 /**
- * Black Hole (Finale - Moving)
+ * Black Hole (DEBUGGING VERSION)
  *
- * This pattern creates a moving black hole on the surface of the coat.
- * It features a swirling, multicolored event horizon with a gravitational
- * lensing effect, all set against a backdrop of twinkling stars.
- * The black hole moves along the surface from one random pixel to another.
+ * This pattern renders a simple, stationary white circle to debug
+ * the 3D coordinate mapping and rendering.
  */
 
 // --- UI Controls ---
@@ -163,10 +160,16 @@ export function beforeRender(delta) {
 }
 
 export function render3D(index, x, y, z) {
-    // --- One-time Map & Starfield Capture ---
+    // --- One-time Map Capture & Epicenter Calculation ---
     if (!isMapInitialized) {
         allX[index] = x; allY[index] = y; allZ[index] = z;
         if (index == pixelCount - 1) {
+            // --- Center Epicenter (between cols 27 & 28) ---
+            var p1_idx = columnStartIndices[27] + floor(columnLengths[27] / 2);
+            var p2_idx = columnStartIndices[28] + floor(columnLengths[28] / 2);
+            centerX = (allX[p1_idx] + allX[p2_idx]) / 2;
+            centerY = (allY[p1_idx] + allY[p2_idx]) / 2;
+            centerZ = (allZ[p1_idx] + allZ[p2_idx]) / 2;
             isMapInitialized = true;
             pickNewTarget();
             pickNewTarget(); // Set the first real target
@@ -175,56 +178,20 @@ export function render3D(index, x, y, z) {
             bhX = bhRadius * cos(currentTheta);
             bhY = bhRadius * sin(currentTheta);
         }
+        return;
     }
-
-    if (!isStarsInitialized) {
-        if (random(1) < starDensity) {
-            var r = random(1);
-            if (r < 0.4) starHue[index] = 0.66; else if (r < 0.7) starHue[index] = 0.83; else if (r < 0.9) starHue[index] = 0; else starHue[index] = -1;
-            starPhase[index] = random(1);
-        } else {
-            starHue[index] = -2;
-        }
-        if (index == pixelCount - 1) isStarsInitialized = true;
-    }
-
-    if (!isMapInitialized) return;
 
     // --- Distance Calculation ---
-    var dx = x - bhX;
-    var dy = y - bhY;
-    var dz = z - bhZ;
+    var dx = x - centerX;
+    var dy = y - centerY;
+    var dz = z - centerZ;
     var distance = hypot3(dx, dy, dz);
 
     // --- Rendering Logic ---
-    if (distance < r1) {
-        rgb(0, 0, 0); // Singularity
-    } else if (distance <= r2) {
-        // Event Horizon
-        var normalizedDist = (distance - r1) / (r2 - r1);
-        var angle = atan2(dy, dx);
-        var swirl = time(swirlSpeed * 0.1) * PI2;
-        var lensing = 1 - normalizedDist;
-        swirl -= lensing * lensing * 5;
-
-        var noise = perlin(angle * 2, swirl, distance * 5, 1);
-        noise = noise * noise;
-
-        var brightness = (1 - normalizedDist) * noise;
-        var hue = 0.6 + noise * 0.5 - (lensing * 0.2);
-
-        hsv(hue, 1, brightness * 2.0);
+    if (distance < radius) {
+        rgb(1, 1, 1); // Simple white circle
     } else {
-        // Starfield
-        if (starHue[index] > -2) {
-            var twinkle = wave(time(0.1) + starPhase[index]);
-            var h = starHue[index];
-            var s = 1, v = twinkle * twinkle * 0.5;
-            if (h == -1) { s = 0; v *= 0.7; }
-            hsv(h, s, v);
-        } else {
-            rgb(0, 0, 0); // Empty space
-        }
+        rgb(0, 0, 0); // Off
     }
 }
 
