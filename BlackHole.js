@@ -8,7 +8,6 @@
 //
 // =================================================================
 
-
 // --- Master Geometry Definition ---
 // This is the single source of truth for the coat's physical layout.
 // The first '0' is a spacer for 1-based indexing.
@@ -80,18 +79,84 @@ for (var i = 0; i < bodyColumns.length; i++) {
  */
 
 // --- UI Controls ---
-export var radius = 5.0;
-export function sliderRadius(v) {
-    radius = v * 20; // Control radius from 0 to 20 inches
+// Radii are in normalized units, where the whole coat is ~0.4 units wide
+var r1 = 0.1; // Radius of the black center
+var r2 = 0.2; // Outer radius of the event horizon
+var swirlSpeed = 0.2;
+var wanderSpeed = 0.5; // Controls how fast it moves between points
+var starDensity = 0.75;
+
+export function sliderRadius1(v) {
+    r1 = v * 0.5; // Slider range 0 to 0.5
+    if (r2 < r1) r2 = r1;
+}
+export function sliderRadius2(v) {
+    var newR2 = v; // Slider range 0 to 1.0
+    if (newR2 >= r1) r2 = newR2;
+}
+export function sliderSwirlSpeed(v) {
+    swirlSpeed = 0.05 + v * 0.5;
+}
+export function sliderWanderSpeed(v) {
+    wanderSpeed = 0.1 + v * 0.9;
 }
 
-// --- State Variables ---
+// --- Animation State ---
+var bhX, bhY, bhZ; // Black hole's current interpolated position
+var PI2 = PI * 2;
+
+// --- Movement State ---
+var currentTheta, currentZ, currentRadius;
+var targetTheta, targetZ, targetRadius;
+var moveTimer = 9999;
+var moveDuration = 5000;
+
+// --- Starfield State ---
+var starHue = array(pixelCount);
+var starPhase = array(pixelCount);
+var isStarsInitialized = false;
+
+// --- Map Initialization ---
 var isMapInitialized = false;
 var allX = array(pixelCount), allY = array(pixelCount), allZ = array(pixelCount);
-var centerX, centerY, centerZ;
+
+// Helper for sign() which is not built-in
+function sign(n) {
+  return n > 0 ? 1 : (n < 0 ? -1 : 0);
+}
+
+// =================================================================
+//                        MAIN LOGIC
+// =================================================================
 
 export function beforeRender(delta) {
-  // Movement is disabled for debugging.
+    if (!isMapInitialized) return;
+
+    moveTimer += delta;
+
+    while (moveTimer >= moveDuration) {
+        moveTimer -= moveDuration;
+        pickNewTarget();
+        moveDuration = (2000 + random(4000)) / wanderSpeed;
+    }
+
+    var progress = moveTimer / moveDuration;
+    if (moveDuration == 0) progress = 1;
+    progress = progress * progress * (3 - 2 * progress); // Smoothstep
+
+    // Interpolate Z, Theta, and Radius separately
+    var dTheta = targetTheta - currentTheta;
+    if (abs(dTheta) > PI) {
+      dTheta = dTheta - sign(dTheta) * PI2;
+    }
+
+    var bhTheta = currentTheta + dTheta * progress;
+    var bhZ = currentZ + (targetZ - currentZ) * progress;
+    var bhRadius = currentRadius + (targetRadius - currentRadius) * progress;
+
+    // Convert back to cartesian for rendering
+    bhX = bhRadius * cos(bhTheta);
+    bhY = bhRadius * sin(bhTheta);
 }
 
 export function render3D(index, x, y, z) {
@@ -106,6 +171,12 @@ export function render3D(index, x, y, z) {
             centerY = (allY[p1_idx] + allY[p2_idx]) / 2;
             centerZ = (allZ[p1_idx] + allZ[p2_idx]) / 2;
             isMapInitialized = true;
+            pickNewTarget();
+            pickNewTarget(); // Set the first real target
+            bhZ = currentZ;
+            var bhRadius = currentRadius;
+            bhX = bhRadius * cos(currentTheta);
+            bhY = bhRadius * sin(currentTheta);
         }
         return;
     }
@@ -122,4 +193,19 @@ export function render3D(index, x, y, z) {
     } else {
         rgb(0, 0, 0); // Off
     }
+}
+
+function pickNewTarget() {
+    // The old target becomes the new starting point
+    currentTheta = targetTheta;
+    currentZ = targetZ;
+    currentRadius = targetRadius;
+
+    // Pick a new random pixel on the coat as the next destination
+    var targetIndex = floor(random(pixelCount));
+    var tx = allX[targetIndex];
+    var ty = allY[targetIndex];
+    targetZ = allZ[targetIndex];
+    targetTheta = atan2(ty, tx);
+    targetRadius = hypot(tx, ty);
 }
