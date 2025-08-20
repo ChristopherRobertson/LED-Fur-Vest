@@ -58,7 +58,6 @@ for (var col = 1; col <= numColumns; col++) {
     }
 }
 
-
 // --- Column Groupings ---
 // An array of all columns that are part of the main body
 var bodyColumns = array(numColumns);
@@ -73,12 +72,10 @@ for (var i = 0; i < bodyColumns.length; i++) {
 }
 
 /**
- * Black Hole (Finale - Moving)
+ * Black Hole (DEBUGGING VERSION)
  *
- * This pattern creates a moving black hole on the surface of the coat.
- * It features a swirling, multicolored event horizon with a gravitational
- * lensing effect, all set against a backdrop of twinkling stars.
- * The black hole moves along the surface from one random pixel to another.
+ * This pattern renders a simple, stationary white circle to debug
+ * the 3D coordinate mapping and rendering.
  */
 
 // --- UI Controls ---
@@ -114,18 +111,15 @@ var targetTheta, targetZ, targetRadius;
 var moveTimer = 9999;
 var moveDuration = 5000;
 
-// --- Starfield State ---
-var starHue = array(pixelCount);
-var starPhase = array(pixelCount);
-var isStarsInitialized = false;
 
-// --- Map Initialization ---
+// --- State Variables ---
 var isMapInitialized = false;
 var allX = array(pixelCount), allY = array(pixelCount), allZ = array(pixelCount);
 
 // Helper for sign() which is not built-in
 function sign(n) {
     return n > 0 ? 1 : (n < 0 ? -1 : 0);
+
 }
 
 // =================================================================
@@ -160,13 +154,20 @@ export function beforeRender(delta) {
     // Convert back to cartesian for rendering
     bhX = bhRadius * cos(bhTheta);
     bhY = bhRadius * sin(bhTheta);
+
 }
 
 export function render3D(index, x, y, z) {
-    // --- One-time Map & Starfield Capture ---
+    // --- One-time Map Capture & Epicenter Calculation ---
     if (!isMapInitialized) {
         allX[index] = x; allY[index] = y; allZ[index] = z;
         if (index == pixelCount - 1) {
+            // --- Center Epicenter (between cols 27 & 28) ---
+            var p1_idx = columnStartIndices[27] + floor(columnLengths[27] / 2);
+            var p2_idx = columnStartIndices[28] + floor(columnLengths[28] / 2);
+            centerX = (allX[p1_idx] + allX[p2_idx]) / 2;
+            centerY = (allY[p1_idx] + allY[p2_idx]) / 2;
+            centerZ = (allZ[p1_idx] + allZ[p2_idx]) / 2;
             isMapInitialized = true;
             pickNewTarget();
             pickNewTarget(); // Set the first real target
@@ -183,16 +184,16 @@ export function render3D(index, x, y, z) {
             starPhase[index] = random(1);
         } else {
             starHue[index] = -2;
+
         }
-        if (index == pixelCount - 1) isStarsInitialized = true;
+        return;
     }
 
-    if (!isMapInitialized) return;
 
     // --- Distance Calculation ---
-    var dx = x - bhX;
-    var dy = y - bhY;
-    var dz = z - bhZ;
+    var dx = x - centerX;
+    var dy = y - centerY;
+    var dz = z - centerZ;
     var distance = hypot3(dx, dy, dz);
 
     // --- Rendering Logic ---
@@ -213,17 +214,9 @@ export function render3D(index, x, y, z) {
         var hue = 0.1 + noise * 0.1 - (lensing * 0.1);
 
         hsv(hue, 1, brightness * 2.0);
+
     } else {
-        // Starfield
-        if (starHue[index] > -2) {
-            var twinkle = wave(time(0.1) + starPhase[index]);
-            var h = starHue[index];
-            var s = 1, v = twinkle * twinkle * 0.5;
-            if (h == -1) { s = 0; v *= 0.7; }
-            hsv(h, s, v);
-        } else {
-            rgb(0, 0, 0); // Empty space
-        }
+        rgb(0, 0, 0); // Off
     }
 }
 
@@ -241,3 +234,4 @@ function pickNewTarget() {
     targetTheta = atan2(ty, tx);
     targetRadius = hypot(tx, ty);
 }
+
