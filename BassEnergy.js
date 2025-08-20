@@ -101,6 +101,7 @@ var avgBass = 0;
 var sustainedBassTimer = 0;
 var timeSinceLastPulse = 9999;
 
+
 // --- 3D Map & Epicenter Storage ---
 var isMapInitialized = false;
 var allX = array(pixelCount), allY = array(pixelCount), allZ = array(pixelCount);

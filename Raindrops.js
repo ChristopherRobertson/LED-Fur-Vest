@@ -149,7 +149,6 @@ export function render3D(index, x, y, z) {
         var dy = y - rippleY[i];
         var dist = sqrt(dx*dx + dy*dy);
 
-
         var age = currentTime - rippleBirthTime[i];
         if (age < 0) age += 1;
 
