@@ -106,6 +106,7 @@ var peakFallSpeed = 0.25;
 
 // --- AGC State ---
 var maxLoudness = 0.1;
+
 // FIXED: Programmatically select the central 32 columns for the EQ display
 var numEqBands = 32;
 var eqColumnsToTrim = numColumns - numEqBands;
