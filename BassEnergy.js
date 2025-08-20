@@ -195,6 +195,7 @@ export function render3D(index, x, y, z) {
                 h = pulseHues[i];
             }
         }
+        return;
     }
 
     hsv(h, s, v*v);
