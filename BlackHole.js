@@ -14,7 +14,6 @@
 // The first '0' is a spacer for 1-based indexing.
 var columnLengths = [0, 25, 25, 35, 36, 36, 36, 36, 36, 35, 35, 36, 36, 36, 36, 36, 35, 25, 25, 25, 25, 35, 36, 36, 36, 36, 36, 35, 35, 36, 36, 36, 36, 36, 35, 25, 25];
 
-
 // --- Pre-computed Variables ---
 var numColumns = columnLengths.length - 1;
 
@@ -57,6 +56,8 @@ for (var col = 1; col <= numColumns; col++) {
         pixelToColumnPos[pixelIndex] = isReversed[col] ? (1 - pos) : pos;
     }
 }
+
+
 
 // --- Column Groupings ---
 // An array of all columns that are part of the main body
