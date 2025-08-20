@@ -8,10 +8,11 @@
 //
 // =================================================================
 
+
 // --- Master Geometry Definition ---
 // This is the single source of truth for the coat's physical layout.
 // The first '0' is a spacer for 1-based indexing.
-var columnLengths = [0,25,25,35,36,36,36,36,36,35,35,36,36,36,36,36,35,25,25,25,25,35,36,36,36,36,36,35,35,36,36,36,36,36,35,25,25];
+var columnLengths = [0, 25, 25, 35, 36, 36, 36, 36, 36, 35, 35, 36, 36, 36, 36, 36, 35, 25, 25, 25, 25, 35, 36, 36, 36, 36, 36, 35, 35, 36, 36, 36, 36, 36, 35, 25, 25];
 
 
 // --- Pre-computed Variables ---
@@ -30,14 +31,14 @@ var columnStartIndices = array(numColumns + 1);
 var acc = 0;
 columnStartIndices[0] = 0;
 for (var col = 1; col <= numColumns; col++) {
-  columnStartIndices[col] = acc;
-  acc += columnLengths[col];
+    columnStartIndices[col] = acc;
+    acc += columnLengths[col];
 }
 
 // Create a lookup table for serpentine wiring (true if column is top-to-bottom)
 var isReversed = array(numColumns + 1);
 for (var col = 1; col <= numColumns; col++) {
-  isReversed[col] = (col % 2 == 0);
+    isReversed[col] = (col % 2 == 0);
 }
 
 // Create a lookup table to quickly find which column a pixel belongs to
@@ -57,7 +58,6 @@ for (var col = 1; col <= numColumns; col++) {
     }
 }
 
-
 // --- Column Groupings ---
 // An array of all columns that are part of the main body
 var bodyColumns = array(numColumns);
@@ -68,7 +68,7 @@ for (var i = 0; i < numColumns; i++) {
 // A reversed copy of the body columns, useful for symmetrical patterns
 var bodyColumnsReversed = array(bodyColumns.length);
 for (var i = 0; i < bodyColumns.length; i++) {
-  bodyColumnsReversed[i] = bodyColumns[bodyColumns.length - 1 - i];
+    bodyColumnsReversed[i] = bodyColumns[bodyColumns.length - 1 - i];
 }
 
 /**
@@ -118,7 +118,8 @@ var allX = array(pixelCount), allY = array(pixelCount), allZ = array(pixelCount)
 
 // Helper for sign() which is not built-in
 function sign(n) {
-  return n > 0 ? 1 : (n < 0 ? -1 : 0);
+    return n > 0 ? 1 : (n < 0 ? -1 : 0);
+
 }
 
 // =================================================================
@@ -143,7 +144,7 @@ export function beforeRender(delta) {
     // Interpolate Z, Theta, and Radius separately
     var dTheta = targetTheta - currentTheta;
     if (abs(dTheta) > PI) {
-      dTheta = dTheta - sign(dTheta) * PI2;
+        dTheta = dTheta - sign(dTheta) * PI2;
     }
 
     var bhTheta = currentTheta + dTheta * progress;
