@@ -52,7 +52,7 @@ for (var col = 1; col <= numColumns; col++) {
     for (var i = 0; i < len; i++) {
         var pixelIndex = start + i;
         pixelToColumn[pixelIndex] = col;
-        // Calculate normalized position (0.0 at top, 1.0 at bottom)
+        // Calculate normalized position (0.0 at bottom, 1.0 at top)
         var pos = (len > 1) ? (i / (len - 1)) : 0;
         pixelToColumnPos[pixelIndex] = isReversed[col] ? (1 - pos) : pos;
     }
@@ -190,8 +190,8 @@ export function render(index) {
 
     var h, s = 1, v = 0;
 
-    if (pos > 1 - barHeight) {
-        h = 0.333 - pos * 0.333; // Color shifts from green at bottom to yellow at top
+    if (pos < barHeight) {
+        h = 0.333 * pos / barHeight; // Color shifts from green at bottom to yellow at top
         v = 1;
     }
 

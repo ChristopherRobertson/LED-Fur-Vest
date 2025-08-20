@@ -52,7 +52,7 @@ for (var col = 1; col <= numColumns; col++) {
     for (var i = 0; i < len; i++) {
         var pixelIndex = start + i;
         pixelToColumn[pixelIndex] = col;
-        // Calculate normalized position (0.0 at top, 1.0 at bottom)
+        // Calculate normalized position (0.0 at bottom, 1.0 at top)
         var pos = (len > 1) ? (i / (len - 1)) : 0;
         pixelToColumnPos[pixelIndex] = isReversed[col] ? (1 - pos) : pos;
     }
@@ -92,7 +92,12 @@ export function sliderHue(v) { hue = v; }
 
 // --- Animation State ---
 var MAX_RIPPLES = 15;
-var ripples = []; // Stores active ripples {x, y, birthTime}
+// We can't use objects, so we use parallel arrays for ripple properties
+var rippleX = array(MAX_RIPPLES);
+var rippleY = array(MAX_RIPPLES);
+var rippleBirthTime = array(MAX_RIPPLES);
+for (var i = 0; i < MAX_RIPPLES; i++) rippleBirthTime[i] = -1; // -1 means inactive
+var ripplePointer = 0;
 
 // --- Map Initialization ---
 var isMapInitialized = false;
@@ -103,27 +108,24 @@ export function beforeRender(delta) {
     if (!isMapInitialized) return;
 
     // --- 1. Create new ripples ---
-    if (ripples.length < MAX_RIPPLES && random(1) < density * delta / 1000 * 5) {
-        // Pick a random pixel on the map for the ripple's origin
+    if (random(1) < density * delta / 1000 * 5) {
         var originIndex = floor(random(pixelCount));
-        var newRipple = {
-            x: allX[originIndex],
-            y: allY[originIndex],
-            birthTime: time(1) // Use a rolling timer for birth time
-        };
-        ripples.push(newRipple);
+        rippleX[ripplePointer] = allX[originIndex];
+        rippleY[ripplePointer] = allY[originIndex];
+        rippleBirthTime[ripplePointer] = time(1);
+        ripplePointer = (ripplePointer + 1) % MAX_RIPPLES;
     }
     
     // --- 2. Prune old ripples ---
-    // Ripples fade out over time, remove them when they are no longer visible.
     var currentTime = time(1);
-    for (var i = ripples.length - 1; i >= 0; i--) {
-        var age = currentTime - ripples[i].birthTime;
-        if (age < 0) age += 1; // Wrap around timer
+    for (var i = 0; i < MAX_RIPPLES; i++) {
+        if (rippleBirthTime[i] == -1) continue;
 
-        // Ripples last for about 2 seconds at default speed
+        var age = currentTime - rippleBirthTime[i];
+        if (age < 0) age += 1;
+
         if (age > 2 / (1 + rippleSpeed * 5)) {
-            ripples.splice(i, 1);
+            rippleBirthTime[i] = -1; // Deactivate the ripple
         }
     }
 }
@@ -140,20 +142,19 @@ export function render3D(index, x, y, z) {
     var currentTime = time(1);
 
     // --- Render ripples ---
-    for (var i = 0; i < ripples.length; i++) {
-        var ripple = ripples[i];
+    for (var i = 0; i < MAX_RIPPLES; i++) {
+        if (rippleBirthTime[i] == -1) continue;
 
-        var dx = x - ripple.x;
-        var dy = y - ripple.y;
-        var dist = sqrt(dx*dx + dy*dy); // 2D distance on the unrolled map
+        var dx = x - rippleX[i];
+        var dy = y - rippleY[i];
+        var dist = sqrt(dx*dx + dy*dy);
 
-        var age = currentTime - ripple.birthTime;
+        var age = currentTime - rippleBirthTime[i];
         if (age < 0) age += 1;
 
         var waveFront = age * (1 + rippleSpeed * 5);
         var distFromWave = abs(dist - waveFront * 0.2);
 
-        // If the pixel is near the expanding wave front
         if (distFromWave < 0.05) {
             var waveValue = 1 - (distFromWave / 0.05);
             var fade = 1 - age * (0.5 * (1 + rippleSpeed * 5));
