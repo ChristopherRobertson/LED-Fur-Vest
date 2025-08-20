@@ -14,10 +14,13 @@ COL_LED_COUNTS = [
 
 ROT_OFFSET = 0.0   # radians (rotate where column 1 is placed)
 CCW = True         # True = columns increase CCW; False = CW
-SERPENTINE_Z = False  # False = all columns start at base (z=0)
+# This setting controls the Z-axis mapping for serpentine data flow.
+# The user's wiring is: Odd Cols = bottom-to-top, Even Cols = top-to-bottom
+# My previous attempt to fix the map had this reversed. This is the original logic.
+SERPENTINE_LOGIC_REVERSED = True # Set to true to match user's diagnosis
 
 # ----------------------------
-# GEOMETRY
+# GEOMETRY - 3D Cylindrical Map
 # ----------------------------
 circ_in = NUM_COLS * ARC_SPACING_IN
 radius_in = circ_in / (2.0 * math.pi)
@@ -32,14 +35,21 @@ for col_idx in range(NUM_COLS):
     y_base = radius_in * math.sin(theta)
 
     n_leds = COL_LED_COUNTS[col_idx]
-    if SERPENTINE_Z:
-        if col_num % 2 == 1:
-            z_positions = [i * LED_PITCH_IN for i in range(n_leds)]
-        else:
-            top_z = (n_leds - 1) * LED_PITCH_IN
-            z_positions = [top_z - i * LED_PITCH_IN for i in range(n_leds)]
+
+    # Generate z-positions based on wiring direction
+    z_positions_natural = [i * LED_PITCH_IN for i in range(n_leds)]
+
+    # Determine which direction this column goes
+    is_bottom_to_top = (col_num % 2 == 1)
+    if SERPENTINE_LOGIC_REVERSED:
+        is_bottom_to_top = not is_bottom_to_top
+
+    if is_bottom_to_top:
+        # Bottom-to-top: ascending Z values
+        z_positions = z_positions_natural
     else:
-        z_positions = [i * LED_PITCH_IN for i in range(n_leds)]
+        # Top-to-bottom: descending Z values
+        z_positions = list(reversed(z_positions_natural))
 
     for z in z_positions:
         coords_in.append([round(x_base, 3), round(y_base, 3), round(z, 3)])
