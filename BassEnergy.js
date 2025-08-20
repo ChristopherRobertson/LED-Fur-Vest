@@ -196,5 +196,6 @@ export function render3D(index, x, y, z) {
         }
         return;
     }
+
     hsv(h, s, v*v);
 }

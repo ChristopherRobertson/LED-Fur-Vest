@@ -149,6 +149,7 @@ export function render3D(index, x, y, z) {
         var dy = y - rippleY[i];
         var dist = sqrt(dx*dx + dy*dy);
 
+
         var age = currentTime - rippleBirthTime[i];
         if (age < 0) age += 1;
 
@@ -161,5 +162,6 @@ export function render3D(index, x, y, z) {
             v = max(v, waveValue * fade);
         }
     }
+
     hsv(hue, 1 - v, v * v); // Use saturation to make it look like water
 }

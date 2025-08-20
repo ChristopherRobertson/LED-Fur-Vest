@@ -105,11 +105,8 @@ var peakValues = array(numColumns + 1);
 var peakFallSpeed = 0.25;
 
 // --- AGC State ---
-var maxLoudness = 0.1
-// --- Pre-computation ---
-var pixelToColumn = array(pixelCount);
-var pixelToColumnPos = array(pixelCount);
-var isInitialized = false;
+var maxLoudness = 0.1;
+
 // FIXED: Programmatically select the central 32 columns for the EQ display
 var numEqBands = 32;
 var eqColumnsToTrim = numColumns - numEqBands;
@@ -133,6 +130,8 @@ for (var i = 0; i < equalizerColumns.length; i++) {
 // =================================================================
 
 export function beforeRender(delta) {
+    // This pattern has no initialization, so it starts right away.
+
     // --- Stage 1: Pre-Emphasis EQ ---
     // Boost higher frequencies to make them visually competitive with the bass.
     for (var i = 0; i < equalizerColumns.length; i++) {
