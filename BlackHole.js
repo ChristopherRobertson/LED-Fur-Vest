@@ -8,6 +8,7 @@
 //
 // =================================================================
 
+
 // --- Master Geometry Definition ---
 // This is the single source of truth for the coat's physical layout.
 // The first '0' is a spacer for 1-based indexing.
@@ -174,9 +175,9 @@ export function render3D(index, x, y, z) {
             pickNewTarget();
             pickNewTarget(); // Set the first real target
             bhZ = currentZ;
-            var bhRadius = currentRadius;
-            bhX = bhRadius * cos(currentTheta);
-            bhY = bhRadius * sin(currentTheta);
+            bhX = currentRadius * cos(currentTheta);
+            bhY = currentRadius * sin(currentTheta);
+
         }
         return;
     }
@@ -209,3 +210,4 @@ function pickNewTarget() {
     targetTheta = atan2(ty, tx);
     targetRadius = hypot(tx, ty);
 }
+
