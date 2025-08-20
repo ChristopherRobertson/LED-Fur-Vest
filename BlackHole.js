@@ -79,18 +79,81 @@ for (var i = 0; i < bodyColumns.length; i++) {
  */
 
 // --- UI Controls ---
-export var radius = 0.25;
-export function sliderRadius(v) {
-    radius = v; // Control radius from 0 to 1 in normalized units
+// Radii are in normalized units, where the whole coat is ~0.4 units wide
+var r1 = 0.1; // Radius of the black center
+var r2 = 0.2; // Outer radius of the event horizon
+var swirlSpeed = 0.2;
+var wanderSpeed = 0.5; // Controls how fast it moves between points
+var starDensity = 0.75;
+
+export function sliderRadius1(v) {
+    r1 = v * 0.5; // Slider range 0 to 0.5
+    if (r2 < r1) r2 = r1;
 }
+export function sliderRadius2(v) {
+    var newR2 = v; // Slider range 0 to 1.0
+    if (newR2 >= r1) r2 = newR2;
+}
+export function sliderSwirlSpeed(v) {
+    swirlSpeed = 0.05 + v * 0.5;
+}
+export function sliderWanderSpeed(v) {
+    wanderSpeed = 0.1 + v * 0.9;
+}
+
+// --- Animation State ---
+var bhX, bhY, bhZ; // Black hole's current interpolated position
+var PI2 = PI * 2;
+
+// --- Movement State ---
+var currentTheta, currentZ, currentRadius;
+var targetTheta, targetZ, targetRadius;
+var moveTimer = 9999;
+var moveDuration = 5000;
+
 
 // --- State Variables ---
 var isMapInitialized = false;
 var allX = array(pixelCount), allY = array(pixelCount), allZ = array(pixelCount);
-var centerX, centerY, centerZ;
+
+// Helper for sign() which is not built-in
+function sign(n) {
+  return n > 0 ? 1 : (n < 0 ? -1 : 0);
+}
+
+// =================================================================
+//                        MAIN LOGIC
+// =================================================================
 
 export function beforeRender(delta) {
-  // All logic is in render3D for this simple pattern.
+    if (!isMapInitialized) return;
+
+    moveTimer += delta;
+
+    while (moveTimer >= moveDuration) {
+        moveTimer -= moveDuration;
+        pickNewTarget();
+        moveDuration = (2000 + random(4000)) / wanderSpeed;
+    }
+
+    var progress = moveTimer / moveDuration;
+    if (moveDuration == 0) progress = 1;
+    progress = progress * progress * (3 - 2 * progress); // Smoothstep
+
+    // Interpolate Z, Theta, and Radius separately
+    var dTheta = targetTheta - currentTheta;
+    if (abs(dTheta) > PI) {
+      dTheta = dTheta - sign(dTheta) * PI2;
+    }
+
+    var bhTheta = currentTheta + dTheta * progress;
+    var bhZ = currentZ + (targetZ - currentZ) * progress;
+    var bhRadius = currentRadius + (targetRadius - currentRadius) * progress;
+
+    // Convert back to cartesian for rendering
+    bhX = bhRadius * cos(bhTheta);
+    bhY = bhRadius * sin(bhTheta);
+
 }
 
 export function render3D(index, x, y, z) {
@@ -105,6 +168,22 @@ export function render3D(index, x, y, z) {
             centerY = (allY[p1_idx] + allY[p2_idx]) / 2;
             centerZ = (allZ[p1_idx] + allZ[p2_idx]) / 2;
             isMapInitialized = true;
+            pickNewTarget();
+            pickNewTarget(); // Set the first real target
+            bhZ = currentZ;
+            bhX = currentRadius * cos(currentTheta);
+            bhY = currentRadius * sin(currentTheta);
+        }
+    }
+
+    if (!isStarsInitialized) {
+        if (random(1) < starDensity) {
+            var r = random(1);
+            if (r < 0.4) starHue[index] = 0.66; else if (r < 0.7) starHue[index] = 0.83; else if (r < 0.9) starHue[index] = 0; else starHue[index] = -1;
+            starPhase[index] = random(1);
+        } else {
+            starHue[index] = -2;
+
         }
         return;
     }
@@ -117,10 +196,41 @@ export function render3D(index, x, y, z) {
     var distance = hypot3(dx, dy, dz);
 
     // --- Rendering Logic ---
-    if (distance < radius) {
-        rgb(1, 1, 1); // Simple white circle
+    if (distance < r1) {
+        rgb(0, 0, 0); // Singularity
+    } else if (distance <= r2) {
+        // Event Horizon
+        var normalizedDist = (distance - r1) / (r2 - r1);
+        var angle = atan2(dy, dx);
+        var swirl = time(swirlSpeed * 0.1) * PI2;
+        var lensing = 1 - normalizedDist;
+        swirl -= lensing * lensing * 5;
+
+        var noise = perlin(angle * 2, swirl, distance * 5, 1);
+        noise = noise * noise;
+
+        var brightness = (1 - normalizedDist) * noise;
+        var hue = 0.1 + noise * 0.1 - (lensing * 0.1);
+
+        hsv(hue, 1, brightness * 2.0);
+
     } else {
         rgb(0, 0, 0); // Off
     }
+}
+
+function pickNewTarget() {
+    // The old target becomes the new starting point
+    currentTheta = targetTheta;
+    currentZ = targetZ;
+    currentRadius = targetRadius;
+
+    // Pick a new random pixel on the coat as the next destination
+    var targetIndex = floor(random(pixelCount));
+    var tx = allX[targetIndex];
+    var ty = allY[targetIndex];
+    targetZ = allZ[targetIndex];
+    targetTheta = atan2(ty, tx);
+    targetRadius = hypot(tx, ty);
 }
 
