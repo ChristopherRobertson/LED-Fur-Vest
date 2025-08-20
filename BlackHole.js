@@ -84,6 +84,7 @@ for (var i = 0; i < bodyColumns.length; i++) {
 // --- UI Controls ---
 var r1 = 5.0; // Radius of the black center
 var r2 = 10.0; // Outer radius of the event horizon
+
 var swirlSpeed = 0.2;
 var wanderSpeed = 0.5; // Controls how fast it moves between points
 
