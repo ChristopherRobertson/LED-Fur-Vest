@@ -8,7 +8,6 @@
 //
 // =================================================================
 
-
 // --- Master Geometry Definition ---
 // This is the single source of truth for the coat's physical layout.
 // The first '0' is a spacer for 1-based indexing.
@@ -110,6 +109,7 @@ export function render3D(index, x, y, z) {
         return;
     }
 
+
     // --- Distance Calculation ---
     var dx = x - centerX;
     var dy = y - centerY;
@@ -123,3 +123,4 @@ export function render3D(index, x, y, z) {
         rgb(0, 0, 0); // Off
     }
 }
+
