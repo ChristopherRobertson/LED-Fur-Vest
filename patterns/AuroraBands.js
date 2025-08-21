@@ -1,21 +1,27 @@
 export var frequencyData = array(32);
+const MAX_Z = 22.966;
+const NUM_COLS = 36;
 var t, bass, mid, treble;
 
 export function beforeRender(delta) {
-  bass = (frequencyData[0] + frequencyData[1] + frequencyData[2]) / 3;
+  bass = 0;
+  for (var b = 0; b < 3; b++) bass = max(bass, frequencyData[b]);
   mid = 0;
-  for (var i = 8; i < 20; i++) mid += frequencyData[i];
-  mid /= 12;
+  for (var m = 8; m < 20; m++) mid = max(mid, frequencyData[m]);
   treble = 0;
-  for (var j = 20; j < 32; j++) treble += frequencyData[j];
-  treble /= 12;
+  for (var tband = 20; tband < 32; tband++) treble = max(treble, frequencyData[tband]);
+
   t = time(0.02 + treble * 0.02);
 }
 
 export function render3D(index, x, y, z) {
   var angle = (atan2(y, x) + PI) / (2 * PI);
-  var hue = angle * 3 + t + bass;
-  var band = sin((z / 16 + t * 2) * PI * 2) * 0.5 + 0.5;
-  var v = band * min(1, mid);
+  var column = floor(angle * NUM_COLS);
+  var colNorm = column / NUM_COLS;
+  var height = z / MAX_Z;
+  var band = sin((height * 3 - t * 2) * PI) * 0.5 + 0.5;
+  var hue = colNorm + t + bass;
+  var v = band * min(1, mid * 1.5);
+
   hsv(hue, 1, v);
 }
