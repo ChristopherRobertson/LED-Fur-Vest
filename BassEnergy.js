@@ -96,6 +96,7 @@ export var frequencyData = array(32);
 var START_TIME = 0, X_COORD = 1, Y_COORD = 2, Z_COORD = 3, HUE = 4;
 
 var MAX_PULSES = 8;
+
 var pulses = array(MAX_PULSES);
 for (var i = 0; i < MAX_PULSES; i++) {
   pulses[i] = array(5);

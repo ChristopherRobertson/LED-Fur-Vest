@@ -1,166 +1,146 @@
 // =================================================================
-//
 //                        GEOMETRY DEFINITION
-//
-// This file contains the master definition for the coat's geometry
-// and provides pre-computed lookup tables for use by the patterns.
-// It should be included before any pattern files.
-//
 // =================================================================
 
-
-// --- Master Geometry Definition ---
-// This is the single source of truth for the coat's physical layout.
-// The first '0' is a spacer for 1-based indexing.
-var columnLengths = [0,25,25,35,36,36,36,36,36,35,35,36,36,36,36,36,35,25,25,25,25,35,36,36,36,36,36,35,35,36,36,36,36,36,35,25,25];
-
-
-// --- Pre-computed Variables ---
+var columnLengths = [0, 25, 25, 35, 36, 36, 36, 36, 36, 35, 35, 36, 36, 36, 36, 36, 35, 25, 25, 25, 25, 35, 36, 36, 36, 36, 36, 35, 35, 36, 36, 36, 36, 36, 35, 25, 25];
 var numColumns = columnLengths.length - 1;
 
-// Calculate the maximum number of LEDs in any single column
-var maxColumnLength = 0;
-for (var i = 1; i <= numColumns; i++) {
-    if (columnLengths[i] > maxColumnLength) {
-        maxColumnLength = columnLengths[i];
-    }
-}
-
-// Compute the starting pixel index for each column (1-based)
-var columnStartIndices = array(numColumns + 1);
-var acc = 0;
-columnStartIndices[0] = 0;
-for (var col = 1; col <= numColumns; col++) {
-  columnStartIndices[col] = acc;
-  acc += columnLengths[col];
-}
-
-// Create a lookup table for serpentine wiring (true if column is top-to-bottom)
-var isReversed = array(numColumns + 1);
-for (var col = 1; col <= numColumns; col++) {
-  isReversed[col] = (col % 2 == 0);
-}
-
-// Create a lookup table to quickly find which column a pixel belongs to
 var pixelToColumn = array(pixelCount);
-// Create a lookup table for a pixel's normalized (0-1) position within its column
 var pixelToColumnPos = array(pixelCount);
 
 for (var col = 1; col <= numColumns; col++) {
-    var start = columnStartIndices[col];
+    var acc = 0;
+    for (var i = 1; i < col; i++) {
+        acc += columnLengths[i];
+    }
+    var start = acc;
     var len = columnLengths[col];
+    var isReversed = (col % 2 == 0);
+
     for (var i = 0; i < len; i++) {
         var pixelIndex = start + i;
         pixelToColumn[pixelIndex] = col;
-        // Calculate normalized position (0.0 at bottom, 1.0 at top)
         var pos = (len > 1) ? (i / (len - 1)) : 0;
-        pixelToColumnPos[pixelIndex] = isReversed[col] ? (1 - pos) : pos;
+        pixelToColumnPos[pixelIndex] = isReversed ? (1 - pos) : pos;
     }
 }
 
+// =================================================================
+//                        RAIN RIPPLES PATTERN
+// =================================================================
 
-// --- Column Groupings ---
-// An array of all columns that are part of the main body
-var bodyColumns = array(numColumns);
-for (var i = 0; i < numColumns; i++) {
-    bodyColumns[i] = i + 1;
+var gain = 0.25;
+var rippleSpeed = 1.0;
+
+export function sliderGain(v) {
+    gain = pow(100, v);
 }
 
-// A reversed copy of the body columns, useful for symmetrical patterns
-var bodyColumnsReversed = array(bodyColumns.length);
-for (var i = 0; i < bodyColumns.length; i++) {
-  bodyColumnsReversed[i] = bodyColumns[bodyColumns.length - 1 - i];
+export function sliderRippleSpeed(v) {
+    rippleSpeed = 0.5 + v * 1.5; // 0.5x to 2.0x speed
 }
 
+export var frequencyData = array(32);
 
-/**
- * Raindrops
- *
- * This pattern simulates raindrops falling on a surface of water,
- * creating expanding circular ripples.
- */
+// Ripple state - up to 5 ripples at once
+var maxRipples = 5;
+var rippleCenterCol = array(maxRipples);
+var rippleCenterHeight = array(maxRipples);
+var rippleRadius = array(maxRipples);
+var rippleIntensity = array(maxRipples);
+var rippleAge = array(maxRipples);
+var rippleHue = array(maxRipples); // Each ripple gets its own color
 
-// --- UI Controls ---
-export var density = 0.3;
-export var rippleSpeed = 0.5;
-export var hue = 0.6;
-
-export function sliderDensity(v) { density = v; }
-export function sliderRippleSpeed(v) { rippleSpeed = v; }
-export function sliderHue(v) { hue = v; }
-
-
-// --- Animation State ---
-var MAX_RIPPLES = 15;
-// We can't use objects, so we use parallel arrays for ripple properties
-var rippleX = array(MAX_RIPPLES);
-var rippleY = array(MAX_RIPPLES);
-var rippleBirthTime = array(MAX_RIPPLES);
-for (var i = 0; i < MAX_RIPPLES; i++) rippleBirthTime[i] = -1; // -1 means inactive
-var ripplePointer = 0;
-
-// --- Map Initialization ---
-var isMapInitialized = false;
-var allX = array(pixelCount), allY = array(pixelCount), allZ = array(pixelCount);
-
+var maxLoudness = 0.1;
+var dropTimer = 0;
 
 export function beforeRender(delta) {
-    if (!isMapInitialized) return;
+    // Bass hits create new raindrops
+    var bassEnergy = (frequencyData[0] + frequencyData[1] + frequencyData[2]) / 3;
 
-    // --- 1. Create new ripples ---
-    if (random(1) < density * delta / 1000 * 5) {
-        var originIndex = floor(random(pixelCount));
-        rippleX[ripplePointer] = allX[originIndex];
-        rippleY[ripplePointer] = allY[originIndex];
-        rippleBirthTime[ripplePointer] = time(1);
-        ripplePointer = (ripplePointer + 1) % MAX_RIPPLES;
+    // AGC
+    if (bassEnergy > maxLoudness) {
+        maxLoudness = bassEnergy;
+    } else {
+        maxLoudness -= delta / 1000 * 0.1;
+        maxLoudness = max(maxLoudness, 0.01);
     }
-    
-    // --- 2. Prune old ripples ---
-    var currentTime = time(1);
-    for (var i = 0; i < MAX_RIPPLES; i++) {
-        if (rippleBirthTime[i] == -1) continue;
 
-        var age = currentTime - rippleBirthTime[i];
-        if (age < 0) age += 1;
+    var normalizedBass = bassEnergy / maxLoudness * gain;
 
-        if (age > 2 / (1 + rippleSpeed * 5)) {
-            rippleBirthTime[i] = -1; // Deactivate the ripple
+    // Create new raindrop when bass hits above threshold
+    var bassThreshold = 0.3;
+    if (normalizedBass > bassThreshold) {
+        // Find an unused ripple slot
+        for (var i = 0; i < maxRipples; i++) {
+            if (rippleIntensity[i] <= 0) {
+                // Create new ripple at random location with random color
+                rippleCenterCol[i] = 1 + random(numColumns);
+                rippleCenterHeight[i] = random(20); // Random height 0-20 inches
+                rippleRadius[i] = 0;
+                rippleIntensity[i] = 0.5 + normalizedBass * 0.5; // Bass intensity affects brightness
+                rippleAge[i] = 0;
+                rippleHue[i] = random(1); // Random color for each raindrop
+                break;
+            }
+        }
+    }
+
+    // Update existing ripples
+    for (var i = 0; i < maxRipples; i++) {
+        if (rippleIntensity[i] > 0) {
+            rippleAge[i] += delta / 1000 * rippleSpeed;
+            rippleRadius[i] = rippleAge[i] * 8; // Expand at 8 inches per second
+            rippleIntensity[i] = max(0, (1 - rippleAge[i] / 3)); // Fade over 3 seconds
         }
     }
 }
 
-export function render3D(index, x, y, z) {
-    // --- One-time Map Capture ---
-    if (!isMapInitialized) {
-        allX[index] = x; allY[index] = y; allZ[index] = z;
-        if (index == pixelCount - 1) isMapInitialized = true;
+export function render(index) {
+    var col = pixelToColumn[index];
+    if (!col) {
+        rgb(0, 0, 0);
         return;
     }
 
-    var v = 0;
-    var currentTime = time(1);
+    var pos = pixelToColumnPos[index];
+    var height = pos * columnLengths[col] * 0.656; // Height in inches
 
-    // --- Render ripples ---
-    for (var i = 0; i < MAX_RIPPLES; i++) {
-        if (rippleBirthTime[i] == -1) continue;
+    var totalIntensity = 0;
+    var finalHue = 0;
+    var weightedHueSum = 0;
+    var totalWeight = 0;
 
-        var dx = x - rippleX[i];
-        var dy = y - rippleY[i];
-        var dist = sqrt(dx*dx + dy*dy);
+    // Check all active ripples
+    for (var i = 0; i < maxRipples; i++) {
+        if (rippleIntensity[i] > 0) {
+            // Calculate distance from this pixel to ripple center
+            var colDist = abs(col - rippleCenterCol[i]);
+            var heightDist = abs(height - rippleCenterHeight[i]);
+            var distance = sqrt(colDist * colDist * 4 + heightDist * heightDist); // Scale column distance
 
-        var age = currentTime - rippleBirthTime[i];
-        if (age < 0) age += 1;
+            // Create ripple ring effect
+            var ringDistance = abs(distance - rippleRadius[i]);
+            var ringWidth = 2.0; // Width of the ripple ring
 
-        var waveFront = age * (1 + rippleSpeed * 5);
-        var distFromWave = abs(dist - waveFront * 0.2);
+            if (ringDistance < ringWidth) {
+                var ringIntensity = (1 - ringDistance / ringWidth) * rippleIntensity[i];
+                totalIntensity += ringIntensity;
 
-        if (distFromWave < 0.05) {
-            var waveValue = 1 - (distFromWave / 0.05);
-            var fade = 1 - age * (0.5 * (1 + rippleSpeed * 5));
-            v = max(v, waveValue * fade);
+                // Weight the color by the intensity of this ripple
+                weightedHueSum += rippleHue[i] * ringIntensity;
+                totalWeight += ringIntensity;
+            }
         }
     }
 
-    hsv(hue, 1 - v, v * v); // Use saturation to make it look like water
+    // Calculate final color based on weighted average of overlapping ripples
+    if (totalWeight > 0) {
+        finalHue = weightedHueSum / totalWeight;
+    }
+
+    // Clamp intensity
+    totalIntensity = min(totalIntensity, 1.0);
+
+    hsv(finalHue, 0.8, totalIntensity);
 }
