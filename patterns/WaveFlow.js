@@ -1,13 +1,25 @@
 export var frequencyData = array(32);
-var t;
+var t, bass, mid, treble;
+
+function fract(x) {
+  return x - floor(x);
+}
 
 export function beforeRender(delta) {
-  var vol = 0;
-  for (var i = 0; i < 32; i++) vol += frequencyData[i];
+  bass = (frequencyData[0] + frequencyData[1] + frequencyData[2]) / 3;
+  mid = 0;
+  for (var i = 8; i < 20; i++) mid += frequencyData[i];
+  mid /= 12;
+  treble = 0;
+  for (var j = 20; j < 32; j++) treble += frequencyData[j];
+  treble /= 12;
+  var vol = bass + mid + treble;
   t = time(0.02 + vol * 0.05);
 }
 
 export function render3D(index, x, y, z) {
   var height = z / 16;
-  hsv(fract(height - t), 1, 1);
+  var hue = fract(height - t * (1 + bass));
+  var v = min(1, mid + treble);
+  hsv(hue, 1, v);
 }
