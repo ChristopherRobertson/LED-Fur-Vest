@@ -201,13 +201,23 @@ export function render3D(index, x, y, z) {
         var distSq = dx*dx + dy*dy + dz*dz;
 
         var outerEdge = center + thickness;
-        // Optimization: only do sqrt if the pixel is close enough to the pulse
-        if (distSq < outerEdge * outerEdge) {
-            var dist = sqrt(distSq);
-            var distFromWave = abs(dist - center);
+        var innerEdge = center - thickness;
 
-            if (distFromWave < thickness) {
-                var waveValue = 1 - (distFromWave / thickness);
+        if (innerEdge < 0) innerEdge = 0;
+
+        var innerEdgeSq = innerEdge * innerEdge;
+        var outerEdgeSq = outerEdge * outerEdge;
+
+        if (distSq > innerEdgeSq && distSq < outerEdgeSq) {
+            // We are in the ring. Calculate brightness without sqrt.
+            var centerSq = center * center;
+            var denominator = outerEdgeSq - centerSq;
+            if (denominator > 0) {
+                // This creates a V-shaped brightness profile based on squared distance.
+                var waveValue = 1 - abs(distSq - centerSq) / denominator;
+                waveValue = max(0, waveValue);
+
+
                 var fade = 1 - age * (0.4 * (1 + speed * 3));
                 var newV = waveValue * fade;
                 if (newV > v) {
