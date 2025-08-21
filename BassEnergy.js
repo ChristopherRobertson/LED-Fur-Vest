@@ -81,7 +81,7 @@ for (var i = 0; i < bodyColumns.length; i++) {
  */
 
 // --- UI Controls ---
-export var sensitivity = 0.6;
+export var sensitivity = 0.8;
 export var speed = 0.5;
 
 export function sliderSensitivity(v) { sensitivity = v; }
@@ -123,7 +123,7 @@ export function beforeRender(delta) {
     var rawBass = frequencyData[0] + frequencyData[1] + frequencyData[2];
     avgBass = avgBass * 0.9 + rawBass * 0.1; // Exponential moving average
 
-    var threshold = 1.2 + (1 - sensitivity) * 3;
+    var threshold = 1.2 + (1 - sensitivity) * 2;
     var sustainThreshold = 1.1 + (1 - sensitivity) * 2;
 
     // Check for sustained bass
@@ -166,7 +166,7 @@ export function beforeRender(delta) {
 
         var age = currentTime - pulses[i][START_TIME];
         if (age < 0) age += 1; // time() wraps around
-        if (age > 1.5 / (1 + speed * 3)) {
+        if (age > 2.5 / (1 + speed * 3)) {
             pulses[i][START_TIME] = -1; // Deactivate the pulse
 
         }
@@ -194,19 +194,26 @@ export function render3D(index, x, y, z) {
         if (age < 0) age += 1; // time() wraps around
 
         var waveFront = age * (1 + speed * 4);
+        var center = waveFront * 2.5;
+        var thickness = 0.2;
+
         var dx = x - pulses[i][X_COORD], dy = y - pulses[i][Y_COORD], dz = z - pulses[i][Z_COORD];
+        var distSq = dx*dx + dy*dy + dz*dz;
 
-        var dist = sqrt(dx*dx + dy*dy + dz*dz);
+        var outerEdge = center + thickness;
+        // Optimization: only do sqrt if the pixel is close enough to the pulse
+        if (distSq < outerEdge * outerEdge) {
+            var dist = sqrt(distSq);
+            var distFromWave = abs(dist - center);
 
-        var distFromWave = abs(dist - waveFront * 2.5);
-
-        if (distFromWave < 0.2) {
-            var waveValue = 1 - (distFromWave / 0.2);
-            var fade = 1 - age * (0.6 * (1 + speed * 3));
-            var newV = waveValue * fade;
-            if (newV > v) {
-                v = newV;
-                h = pulses[i][HUE];
+            if (distFromWave < thickness) {
+                var waveValue = 1 - (distFromWave / thickness);
+                var fade = 1 - age * (0.4 * (1 + speed * 3));
+                var newV = waveValue * fade;
+                if (newV > v) {
+                    v = newV;
+                    h = pulses[i][HUE];
+                }
 
             }
         }
