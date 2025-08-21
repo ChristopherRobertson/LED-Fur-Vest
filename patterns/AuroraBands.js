@@ -1,6 +1,7 @@
 export var frequencyData = array(32);
 var MAX_Z = 22.966;
 var NUM_COLS = 36;
+
 var t, bass, mid, treble;
 
 export function beforeRender(delta) {
@@ -10,6 +11,7 @@ export function beforeRender(delta) {
   for (var m = 8; m < 20; m++) mid = max(mid, frequencyData[m]);
   treble = 0;
   for (var tband = 20; tband < 32; tband++) treble = max(treble, frequencyData[tband]);
+
   t = time(0.02 + treble * 0.02);
 }
 
@@ -21,5 +23,6 @@ export function render3D(index, x, y, z) {
   var band = sin((height * 3 - t * 2) * PI) * 0.5 + 0.5;
   var hue = colNorm + t + bass;
   var v = band * min(1, mid * 1.5);
+
   hsv(hue, 1, v);
 }
