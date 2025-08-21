@@ -94,8 +94,10 @@ export var frequencyData = array(32);
 // --- Beat Detection & Pulse State ---
 var MAX_PULSES = 20;
 var pulses = array(MAX_PULSES);
-for (var i = 0; i < MAX_PULSES; i++) pulses[i] = -1; // -1 indicates an inactive slot
-var pulseHues = array(MAX_PULSES);
+// Initialize pulse objects. Inactive pulses have startTime = -1
+for (var i = 0; i < MAX_PULSES; i++) {
+    pulses[i] = { startTime: -1, x: 0, y: 0, z: 0, hue: 0 };
+}
 var pulsePointer = 0;
 var avgBass = 0;
 var sustainedBassTimer = 0;
@@ -105,7 +107,6 @@ var timeSinceLastPulse = 9999;
 // --- 3D Map & Epicenter Storage ---
 var isMapInitialized = false;
 var allX = array(pixelCount), allY = array(pixelCount), allZ = array(pixelCount);
-var backX, backY, backZ;
 
 
 export function beforeRender(delta) {
@@ -133,8 +134,21 @@ export function beforeRender(delta) {
 
     // Trigger a new pulse
     if (rawBass > avgBass * threshold && timeSinceLastPulse > cooldown) {
-        pulses[pulsePointer] = time(1);
-        pulseHues[pulsePointer] = random(1);
+        var pulse = pulses[pulsePointer];
+        pulse.startTime = time(1);
+
+        // Pick a random pixel for the epicenter
+        var randomPixel = floor(random(pixelCount));
+        pulse.x = allX[randomPixel];
+        pulse.y = allY[randomPixel];
+        pulse.z = allZ[randomPixel];
+
+        // Hue changes based on beat speed. Faster beats make larger hue shifts.
+        var lastPulseHue = pulses[(pulsePointer + MAX_PULSES - 1) % MAX_PULSES].hue;
+        // The clamp function is not standard JS, but is available in the target environment
+        var hueDelta = 0.1 + (1 - clamp(timeSinceLastPulse / 1000, 0, 1)) * 0.3;
+        pulse.hue = (lastPulseHue + hueDelta) % 1;
+
         pulsePointer = (pulsePointer + 1) % MAX_PULSES;
         timeSinceLastPulse = 0;
     }
@@ -142,12 +156,12 @@ export function beforeRender(delta) {
     // --- Prune old pulses ---
     var currentTime = time(1);
     for (var i = 0; i < MAX_PULSES; i++) {
-        if (pulses[i] == -1) continue;
+        if (pulses[i].startTime == -1) continue;
 
-        var age = currentTime - pulses[i];
-        if (age < 0) age += 1;
+        var age = currentTime - pulses[i].startTime;
+        if (age < 0) age += 1; // time() wraps around
         if (age > 1.5 / (1 + speed * 3)) {
-            pulses[i] = -1; // Deactivate the pulse
+            pulses[i].startTime = -1; // Deactivate the pulse
         }
     }
 }
@@ -156,14 +170,6 @@ export function render3D(index, x, y, z) {
     if (!isMapInitialized) {
         allX[index] = x; allY[index] = y; allZ[index] = z;
         if (index == pixelCount - 1) {
-            // --- Back Epicenter (bottom of cols 27 & 28) ---
-            // Col 27 is reversed, so its last pixel is at the bottom.
-            var p1_idx = columnStartIndices[27] + columnLengths[27] - 1;
-            // Col 28 is normal, so its first pixel is at the bottom.
-            var p2_idx = columnStartIndices[28];
-            backX = (allX[p1_idx] + allX[p2_idx]) / 2;
-            backY = (allY[p1_idx] + allY[p2_idx]) / 2;
-            backZ = (allZ[p1_idx] + allZ[p2_idx]) / 2;
             isMapInitialized = true;
         }
         return;
@@ -175,13 +181,13 @@ export function render3D(index, x, y, z) {
     var currentTime = time(1);
 
     for (var i = 0; i < MAX_PULSES; i++) {
-        if (pulses[i] == -1) continue;
+        if (pulses[i].startTime == -1) continue;
 
-        var age = currentTime - pulses[i];
-        if (age < 0) age += 1;
+        var age = currentTime - pulses[i].startTime;
+        if (age < 0) age += 1; // time() wraps around
 
         var waveFront = age * (1 + speed * 4);
-        var dx = x - backX, dy = y - backY, dz = z - backZ;
+        var dx = x - pulses[i].x, dy = y - pulses[i].y, dz = z - pulses[i].z;
         var dist = sqrt(dx*dx + dy*dy + dz*dz);
 
         var distFromWave = abs(dist - waveFront * 2.5);
@@ -192,10 +198,9 @@ export function render3D(index, x, y, z) {
             var newV = waveValue * fade;
             if (newV > v) {
                 v = newV;
-                h = pulseHues[i];
+                h = pulses[i].hue;
             }
         }
-        return;
     }
 
     hsv(h, s, v*v);
