@@ -92,11 +92,16 @@ export function sliderSpeed(v) { speed = v; }
 export var frequencyData = array(32);
 
 // --- Beat Detection & Pulse State ---
+// Each pulse is an array: [startTime, x, y, z, hue]
+var START_TIME = 0, X_COORD = 1, Y_COORD = 2, Z_COORD = 3, HUE = 4;
+
 var MAX_PULSES = 20;
 var pulses = array(MAX_PULSES);
-// Initialize pulse objects. Inactive pulses have startTime = -1
 for (var i = 0; i < MAX_PULSES; i++) {
-    pulses[i] = { startTime: -1, x: 0, y: 0, z: 0, hue: 0 };
+  pulses[i] = array(5);
+  pulses[i][START_TIME] = -1;
+  pulses[i][HUE] = random(1); // Initialize with a random hue
+
 }
 var pulsePointer = 0;
 var avgBass = 0;
@@ -135,19 +140,20 @@ export function beforeRender(delta) {
     // Trigger a new pulse
     if (rawBass > avgBass * threshold && timeSinceLastPulse > cooldown) {
         var pulse = pulses[pulsePointer];
-        pulse.startTime = time(1);
+        pulse[START_TIME] = time(1);
 
         // Pick a random pixel for the epicenter
         var randomPixel = floor(random(pixelCount));
-        pulse.x = allX[randomPixel];
-        pulse.y = allY[randomPixel];
-        pulse.z = allZ[randomPixel];
+        pulse[X_COORD] = allX[randomPixel];
+        pulse[Y_COORD] = allY[randomPixel];
+        pulse[Z_COORD] = allZ[randomPixel];
 
         // Hue changes based on beat speed. Faster beats make larger hue shifts.
-        var lastPulseHue = pulses[(pulsePointer + MAX_PULSES - 1) % MAX_PULSES].hue;
+        var lastPulseHue = pulses[(pulsePointer + MAX_PULSES - 1) % MAX_PULSES][HUE];
         // The clamp function is not standard JS, but is available in the target environment
         var hueDelta = 0.1 + (1 - clamp(timeSinceLastPulse / 1000, 0, 1)) * 0.3;
-        pulse.hue = (lastPulseHue + hueDelta) % 1;
+        pulse[HUE] = (lastPulseHue + hueDelta) % 1;
+
 
         pulsePointer = (pulsePointer + 1) % MAX_PULSES;
         timeSinceLastPulse = 0;
@@ -156,12 +162,13 @@ export function beforeRender(delta) {
     // --- Prune old pulses ---
     var currentTime = time(1);
     for (var i = 0; i < MAX_PULSES; i++) {
-        if (pulses[i].startTime == -1) continue;
+        if (pulses[i][START_TIME] == -1) continue;
 
-        var age = currentTime - pulses[i].startTime;
+        var age = currentTime - pulses[i][START_TIME];
         if (age < 0) age += 1; // time() wraps around
         if (age > 1.5 / (1 + speed * 3)) {
-            pulses[i].startTime = -1; // Deactivate the pulse
+            pulses[i][START_TIME] = -1; // Deactivate the pulse
+
         }
     }
 }
@@ -181,13 +188,14 @@ export function render3D(index, x, y, z) {
     var currentTime = time(1);
 
     for (var i = 0; i < MAX_PULSES; i++) {
-        if (pulses[i].startTime == -1) continue;
+        if (pulses[i][START_TIME] == -1) continue;
 
-        var age = currentTime - pulses[i].startTime;
+        var age = currentTime - pulses[i][START_TIME];
         if (age < 0) age += 1; // time() wraps around
 
         var waveFront = age * (1 + speed * 4);
-        var dx = x - pulses[i].x, dy = y - pulses[i].y, dz = z - pulses[i].z;
+        var dx = x - pulses[i][X_COORD], dy = y - pulses[i][Y_COORD], dz = z - pulses[i][Z_COORD];
+
         var dist = sqrt(dx*dx + dy*dy + dz*dz);
 
         var distFromWave = abs(dist - waveFront * 2.5);
@@ -198,7 +206,8 @@ export function render3D(index, x, y, z) {
             var newV = waveValue * fade;
             if (newV > v) {
                 v = newV;
-                h = pulses[i].hue;
+                h = pulses[i][HUE];
+
             }
         }
     }
