@@ -1,5 +1,6 @@
 export var frequencyData = array(32);
 const MAX_Z = 22.966;
+
 var t;
 
 export function beforeRender(delta) {

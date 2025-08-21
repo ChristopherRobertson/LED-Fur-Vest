@@ -8,6 +8,7 @@ export function beforeRender(delta) {
   for (var b = 0; b < 3; b++) bass = max(bass, frequencyData[b]);
   treble = 0;
   for (var i = 20; i < 32; i++) treble = max(treble, frequencyData[i]);
+
   t = time(0.05 + bass * 0.04);
 }
 
@@ -16,6 +17,7 @@ export function render3D(index, x, y, z) {
   var column = floor(angle * NUM_COLS);
   var height = z / MAX_Z;
   var hue = column / NUM_COLS * 4 - height - t + treble;
+
   var v = bass;
   hsv(hue, 1, v);
 }
