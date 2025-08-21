@@ -101,6 +101,7 @@ for (var i = 0; i < MAX_PULSES; i++) {
   pulses[i] = array(5);
   pulses[i][START_TIME] = -1;
   pulses[i][HUE] = random(1); // Initialize with a random hue
+
 }
 var pulsePointer = 0;
 var avgBass = 0;
@@ -153,6 +154,7 @@ export function beforeRender(delta) {
         var hueDelta = 0.1 + (1 - clamp(timeSinceLastPulse / 1000, 0, 1)) * 0.3;
         pulse[HUE] = (lastPulseHue + hueDelta) % 1;
 
+
         pulsePointer = (pulsePointer + 1) % MAX_PULSES;
         timeSinceLastPulse = 0;
     }
@@ -166,6 +168,7 @@ export function beforeRender(delta) {
         if (age < 0) age += 1; // time() wraps around
         if (age > 2.5 / (1 + speed * 3)) {
             pulses[i][START_TIME] = -1; // Deactivate the pulse
+
         }
     }
 }
@@ -214,12 +217,14 @@ export function render3D(index, x, y, z) {
                 var waveValue = 1 - abs(distSq - centerSq) / denominator;
                 waveValue = max(0, waveValue);
 
+
                 var fade = 1 - age * (0.4 * (1 + speed * 3));
                 var newV = waveValue * fade;
                 if (newV > v) {
                     v = newV;
                     h = pulses[i][HUE];
                 }
+
             }
         }
     }
