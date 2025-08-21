@@ -1,6 +1,7 @@
 export var frequencyData = array(32);
-const MAX_Z = 22.966;
-const NUM_COLS = 36;
+var MAX_Z = 22.966;
+var NUM_COLS = 36;
+
 var t, bass, mid, treble;
 
 export function beforeRender(delta) {
