@@ -12,33 +12,34 @@
 // --- Master Geometry Definition ---
 // This is the single source of truth for the coat's physical layout.
 // The first '0' is a spacer for 1-based indexing.
-var columnLengths = [0,25,25,35,36,36,36,36,36,35,35,36,36,36,36,36,35,25,25,25,25,35,36,36,36,36,36,35,35,36,36,36,36,36,35,25,25];
+var columnLengths = [0, 25, 25, 35, 36, 36, 36, 36, 36, 35, 35, 36, 36, 36, 36, 36, 35, 25, 25, 25, 25, 35, 36, 36, 36, 36, 36, 35, 35, 36, 36, 36, 36, 36, 35, 25, 25];
 
 
 // --- Pre-computed Variables ---
 var numColumns = columnLengths.length - 1;
 
-// Calculate the maximum number of LEDs in any single column
+// Calculate the maximum number of LEDs in any single column (reduced by 1 for collision sync)
 var maxColumnLength = 0;
 for (var i = 1; i <= numColumns; i++) {
     if (columnLengths[i] > maxColumnLength) {
         maxColumnLength = columnLengths[i];
     }
 }
+maxColumnLength = maxColumnLength - 1; // Reduce by 1 so spirals can meet properly
 
 // Compute the starting pixel index for each column (1-based)
 var columnStartIndices = array(numColumns + 1);
 var acc = 0;
 columnStartIndices[0] = 0;
 for (var col = 1; col <= numColumns; col++) {
-  columnStartIndices[col] = acc;
-  acc += columnLengths[col];
+    columnStartIndices[col] = acc;
+    acc += columnLengths[col];
 }
 
 // Create a lookup table for serpentine wiring (true if column is top-to-bottom)
 var isReversed = array(numColumns + 1);
 for (var col = 1; col <= numColumns; col++) {
-  isReversed[col] = (col % 2 == 0);
+    isReversed[col] = (col % 2 == 0);
 }
 
 // Create a lookup table to quickly find which column a pixel belongs to
@@ -66,10 +67,20 @@ for (var i = 0; i < numColumns; i++) {
     bodyColumns[i] = i + 1;
 }
 
-// A reversed copy of the body columns, useful for symmetrical patterns
-var bodyColumnsReversed = array(bodyColumns.length);
-for (var i = 0; i < bodyColumns.length; i++) {
-  bodyColumnsReversed[i] = bodyColumns[bodyColumns.length - 1 - i];
+// Filter out columns with 25 LEDs - only use tall columns for spirals
+var tallColumns = array(numColumns);
+var tallColumnCount = 0;
+for (var i = 1; i <= numColumns; i++) {
+    if (columnLengths[i] > 25) {
+        tallColumns[tallColumnCount] = i;
+        tallColumnCount++;
+    }
+}
+
+// A reversed copy of the tall columns
+var tallColumnsReversed = array(tallColumnCount);
+for (var i = 0; i < tallColumnCount; i++) {
+    tallColumnsReversed[i] = tallColumns[tallColumnCount - 1 - i];
 }
 
 /**
@@ -172,11 +183,11 @@ function runSpirals(delta) {
 
     var progress = spiralAccumulator / finalPeriod;
     var step = floor(progress * totalAnimationSteps);
-    var horizontalStep = step % bodyColumns.length;
+    var horizontalStep = step % tallColumnCount; // Use tallColumnCount instead
     var masterVerticalStep = floor(step / spiralPitch);
 
     // --- Spiral 1 ---
-    var columnNumber1 = bodyColumns[horizontalStep];
+    var columnNumber1 = tallColumns[horizontalStep];
     var startIndex1 = columnStartIndices[columnNumber1];
     var len1 = columnLengths[columnNumber1];
     var litPixel1 = -1;
@@ -185,7 +196,7 @@ function runSpirals(delta) {
     }
 
     // --- Spiral 2 ---
-    var columnNumber2 = bodyColumnsReversed[horizontalStep];
+    var columnNumber2 = tallColumnsReversed[horizontalStep];
     var startIndex2 = columnStartIndices[columnNumber2];
     var len2 = columnLengths[columnNumber2];
     // FIXED: Use maxColumnLength instead of a hardcoded value
@@ -201,14 +212,18 @@ function runSpirals(delta) {
 
     // --- Collision Detection ---
     var collision = false;
-    if (litPixel1 != -1 && litPixel1 == litPixel2) {
-        epicenterIndex = litPixel1;
+
+    // Trigger explosion when either spiral reaches the center back area (fine-tuned timing)
+    if (litPixel1 != -1 && (columnNumber1 == 27 || columnNumber1 == 28) && masterVerticalStep >= 16 && masterVerticalStep <= 17) {
         collision = true;
-    // As per user request, move back collision to columns 27 and 28
-    } else if (((columnNumber1 == 27 && columnNumber2 == 28) || (columnNumber1 == 28 && columnNumber2 == 27)) && masterVerticalStep >= 17 && masterVerticalStep <= 18) {
-        // Set epicenter to the middle of column 27 to ensure a valid pixel index.
+    }
+    if (litPixel2 != -1 && (columnNumber2 == 27 || columnNumber2 == 28) && blueVerticalOffset >= 16 && blueVerticalOffset <= 17) {
+        collision = true;
+    }
+
+    if (collision) {
+        // Set epicenter to the middle of column 27
         epicenterIndex = columnStartIndices[27] + floor(columnLengths[27] / 2);
-        collision = true;
     }
 
     if (collision) {
