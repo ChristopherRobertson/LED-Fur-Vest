@@ -29,11 +29,17 @@ for (var col = 1; col <= numColumns; col++) {
 //                        RAIN RIPPLES PATTERN
 // =================================================================
 
-var gain = 0.25;
+var baseGain = 0.25;
+var dynamicGain = 0.25;
 var rippleSpeed = 1.0;
 
+// Dynamic gain parameters
+var quietThreshold = 0.15;  // Below this level, no display
+var loudThreshold = 0.8;    // Above this level, gain reduction kicks in
+var gainSmoothingSpeed = 5; // How fast gain adjusts
+
 export function sliderGain(v) {
-    gain = pow(100, v);
+    baseGain = pow(100, v);
 }
 
 export function sliderRippleSpeed(v) {
@@ -66,7 +72,31 @@ export function beforeRender(delta) {
         maxLoudness = max(maxLoudness, 0.01);
     }
 
-    var normalizedBass = bassEnergy / maxLoudness * gain;
+    // --- Dynamic Gain Control ---
+    // Calculate overall volume level for dynamic gain adjustment
+    var overallVolume = bassEnergy / maxLoudness;
+
+    // Calculate target dynamic gain based on volume
+    var targetGain;
+    if (overallVolume < quietThreshold) {
+        // Very quiet or just background noise - no display
+        targetGain = 0;
+    } else if (overallVolume > loudThreshold) {
+        // Loud environment - reduce gain to prevent saturation
+        var excessVolume = overallVolume - loudThreshold;
+        var gainReduction = min(0.8, excessVolume * 2); // Max 80% reduction
+        targetGain = baseGain * (1 - gainReduction);
+    } else {
+        // Normal volume range - scale gain based on how far above quiet threshold
+        var volumeRange = loudThreshold - quietThreshold;
+        var volumePosition = (overallVolume - quietThreshold) / volumeRange;
+        targetGain = baseGain * volumePosition;
+    }
+
+    // Smooth the gain changes
+    dynamicGain += (targetGain - dynamicGain) * delta / 1000 * gainSmoothingSpeed;
+
+    var normalizedBass = bassEnergy / maxLoudness * dynamicGain;
 
     // Create new raindrop when bass hits above threshold
     var bassThreshold = 0.3;
